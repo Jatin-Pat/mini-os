@@ -1,0 +1,7 @@
+set one un
+set two deux
+print two
+print one
+set two trois
+print two
+quit
