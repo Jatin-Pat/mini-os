@@ -16,14 +16,15 @@ function run_test () {
     then    
         ./starter-code/mysh < ${path_to_test} > $temp_file
         d=$(git diff --no-index --ignore-all-space $temp_file ${path_to_ans})
+        res=$? 
         rm $temp_file
+
     else
         echo -e "\n\n${red}ERROR: MISSING FILE FOR TEST:${nc} ${test_name}\n\n"
         return 2
     fi
 
 
-    res=$? 
     if [ $res -eq 0 ]; then 
         echo -e "${green}Test: ${test_name}: Passed ${nc}\n"
     else 
