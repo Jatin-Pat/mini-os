@@ -3,7 +3,7 @@ tags
 
 # compilation artifacts
 *.o
-#mysh
+mysh
 
 # vim artefacts
 *.swp
