@@ -17,6 +17,11 @@ int badcommandFileDoesNotExist(){
     return 3;
 }
 
+int badcommandTooManyTokens(){
+    printf("Bad command: Too many tokens\n");
+    return 4;
+}
+
 int help();
 int quit();
 int set(char* var, char* value);
@@ -48,7 +53,8 @@ int interpreter(char* command_args[], int args_size) {
 
     } else if (strcmp(command_args[0], "set") == 0) {
         //set
-        if (args_size != 3) return badcommand();	
+        if (args_size < 3) return badcommand();
+        else if (args_size > 7) return badcommandTooManyTokens();
         return set(command_args[1], command_args[2]);
     
     } else if (strcmp(command_args[0], "print") == 0) {

@@ -1,5 +1,5 @@
 CC=gcc
-CFLAGS=
+CFLAGS= -g -Wall
 
 mysh: shell.c interpreter.c shellmemory.c
 	$(CC) $(CFLAGS) -c shell.c interpreter.c shellmemory.c
