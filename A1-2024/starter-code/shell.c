@@ -29,6 +29,9 @@ int main(int argc, char *argv[]) {
         if (isatty(0)){
             printf("%c ", prompt);
         }
+        else if (feof(stdin)) {
+            break;
+        }
         // here you should check the unistd library 
         // so that you can find a way to not display $ in the batch mode
         fgets(userInput, MAX_USER_INPUT-1, stdin);
