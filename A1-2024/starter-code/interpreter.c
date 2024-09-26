@@ -4,7 +4,7 @@
 #include "shellmemory.h"
 #include "shell.h"
 
-int MAX_ARGS_SIZE = 3;
+int MAX_ARGS_SIZE = 7;
 
 int badcommand(){
     printf("Unknown Command\n");
@@ -55,7 +55,7 @@ int interpreter(char* command_args[], int args_size) {
         //set
         if (args_size < 3) return badcommand();
         else if (args_size > 7) return badcommandTooManyTokens();
-        return set(command_args[1], command_args[2]);
+        return set(command_args, args_size);
     
     } else if (strcmp(command_args[0], "print") == 0) {
         if (args_size != 2) return badcommand();
@@ -86,8 +86,9 @@ int quit() {
     exit(0);
 }
 
-int set(char *var, char *value) {
-    char *link = "=";
+int set(char *command_args[], int num_args) {
+//char *var, char *value
+    //char *link = "=";
 
     /* PART 1: You might want to write code that looks something like this.
          You should look up documentation for strcpy and strcat.
@@ -97,6 +98,9 @@ int set(char *var, char *value) {
     strcat(buffer, link);
     strcat(buffer, value);
     */
+
+    char *var = command_args[1]
+    
 
     mem_set_value(var, value);
 
