@@ -102,6 +102,7 @@ int set(char *command_args[], int num_args) {
     }
 
     mem_set_value(var, value);
+    free(value);
     return 0;
 }
 
