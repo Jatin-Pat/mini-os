@@ -167,8 +167,13 @@ int echo(char *arg) {
         memset(var, '\0', sizeof_var);
         strcpy(var, (arg + 1)); // skip the '$' char
 
-        print(var);
-
+        char *value = mem_get_value(var);
+        if (value) {
+            printf("%s\n", value);
+        } else {
+            printf("\n");
+        }
+        free(value);
         free(var);
 
     } else {
