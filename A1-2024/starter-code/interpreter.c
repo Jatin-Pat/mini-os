@@ -24,7 +24,7 @@ int badcommandTooManyTokens(){
 
 int help();
 int quit();
-int set(char* var, char* value);
+int set(char* command_args[], int args_size);
 int print(char* var);
 int run(char* script);
 int badcommandFileDoesNotExist();
@@ -33,8 +33,11 @@ int badcommandFileDoesNotExist();
 int interpreter(char* command_args[], int args_size) {
     int i;
 
-    if (args_size < 1 || args_size > MAX_ARGS_SIZE) {
+    if (args_size < 1) {
         return badcommand();
+    }
+    else if (args_size > MAX_ARGS_SIZE) {
+        return badcommandTooManyTokens();
     }
 
     for (i = 0; i < args_size; i++) { // terminate args at newlines
@@ -87,23 +90,18 @@ int quit() {
 }
 
 int set(char *command_args[], int num_args) {
-//char *var, char *value
-    //char *link = "=";
+    char *var = command_args[1];
+    char *value = malloc(sizeof(char) * num_args);
+    memset(value, '\0', sizeof(sizeof(char) * num_args));
+    int value_size = 0;
 
-    /* PART 1: You might want to write code that looks something like this.
-         You should look up documentation for strcpy and strcat.
-
-    char buffer[MAX_USER_INPUT];
-    strcpy(buffer, var);
-    strcat(buffer, link);
-    strcat(buffer, value);
-    */
-
-    char *var = command_args[1]
-    
+    for (int i = 2; i < num_args; i++){
+        strcat(value, command_args[i]);
+        strcat(value, " ");
+        value_size += (strlen(command_args[i]) + 1);
+    }
 
     mem_set_value(var, value);
-
     return 0;
 }
 
