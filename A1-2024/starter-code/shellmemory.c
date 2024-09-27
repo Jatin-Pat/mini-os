@@ -63,5 +63,5 @@ char *mem_get_value(char *var_in) {
             return strdup(shellmemory[i].value);
         } 
     }
-    return "Variable does not exist";
+    return NULL;
 }
