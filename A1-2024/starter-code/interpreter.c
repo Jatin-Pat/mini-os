@@ -91,8 +91,9 @@ int quit() {
 
 int set(char *command_args[], int num_args) {
     char *var = command_args[1];
-    char *value = malloc(sizeof(char) * num_args);
-    memset(value, '\0', sizeof(sizeof(char) * num_args));
+    size_t size_of_value = sizeof(char) * num_args * 100;
+    char *value = malloc(size_of_value);
+    memset(value, '\0', size_of_value);
     int value_size = 0;
 
     for (int i = 2; i < num_args; i++){
@@ -100,6 +101,7 @@ int set(char *command_args[], int num_args) {
         strcat(value, " ");
         value_size += (strlen(command_args[i]) + 1);
     }
+    value[value_size - 1] = '\0'; // remove last space
 
     mem_set_value(var, value);
     free(value);
@@ -107,7 +109,9 @@ int set(char *command_args[], int num_args) {
 }
 
 int print(char *var) {
-    printf("%s\n", mem_get_value(var)); 
+    char *value = mem_get_value(var);
+    printf("%s\n", value);
+    free(value);
     return 0;
 }
 

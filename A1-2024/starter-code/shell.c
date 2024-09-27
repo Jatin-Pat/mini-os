@@ -50,7 +50,7 @@ int wordEnding(char c) {
 }
 
 int parseInput(char inp[]) {
-    char tmp[200], *words[100];                            
+    char tmp[200], *words[100];
     int ix = 0, w = 0;
     int wordlen;
     int errorCode;
@@ -67,5 +67,10 @@ int parseInput(char inp[]) {
         ix++; 
     }
     errorCode = interpreter(words, w);
+
+    for (int i = 0; i < w; i++) {
+        free(words[i]);
+    }
+
     return errorCode;
 }
