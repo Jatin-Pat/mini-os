@@ -35,8 +35,7 @@ int interpreter(char* command_args[], int args_size) {
 
     if (args_size < 1) {
         return badcommand();
-    }
-    else if (args_size > MAX_ARGS_SIZE) {
+    } else if (args_size > MAX_ARGS_SIZE) {
         return badcommandTooManyTokens();
     }
 

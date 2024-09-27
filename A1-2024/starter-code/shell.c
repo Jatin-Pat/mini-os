@@ -28,8 +28,7 @@ int main(int argc, char *argv[]) {
     while(1) {							
         if (isatty(0)){
             printf("%c ", prompt);
-        }
-        else if (feof(stdin)) {
+        } else if (feof(stdin)) {
             break;
         }
         // here you should check the unistd library 
@@ -50,7 +49,8 @@ int wordEnding(char c) {
 }
 
 int parseInput(char inp[]) {
-    char tmp[200], *words[100];
+    char tmp[200];
+    char *words[100];
     int ix = 0, w = 0;
     int wordlen;
     int errorCode;
