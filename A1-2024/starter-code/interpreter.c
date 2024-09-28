@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h> 
+#include <dirent.h>
 #include "shellmemory.h"
 #include "shell.h"
 
@@ -37,6 +38,8 @@ int set(char* command_args[], int args_size);
 int print(char* var);
 int run(char* script);
 int echo(char* arg);
+int my_ls();
+int my_touch(char* filename);
 
 // Interpret commands and their arguments
 int interpreter(char* command_args[], int args_size) {
@@ -79,6 +82,14 @@ int interpreter(char* command_args[], int args_size) {
     } else if (strcmp(command_args[0], "echo") == 0) {
         if (args_size != 2) return badcommand();
         return echo(command_args[1]);
+
+    } else if (strcmp(command_args[0], "my_ls") == 0) {
+        if (args_size != 1) return badcommand();
+        return my_ls();
+
+    } else if (strcmp(command_args[0], "my_touch") == 0) {
+        if (args_size != 2) return badcommand();
+        return my_touch(command_args[1]);
 
     } else return badcommand();
 }
@@ -181,4 +192,28 @@ int echo(char *arg) {
         printf("%s\n", arg);
     }
     return error_code;
+}
+
+int my_ls() {
+    struct dirent **namelist;
+    int n;
+
+    n = scandir(".", &namelist, NULL, alphasort);
+    
+    for (int i = 0; i < n; i++) {
+        printf("%s\n", namelist[i]->d_name);
+        free(namelist[i]);
+    }
+    free(namelist);
+    return 0;
+}
+
+int my_touch(char *filename) {
+
+    if (filename[0] == '\0') {
+        return badcommandTooFewTokens();
+    }
+    FILE *file = fopen(filename, "w");
+    fclose(file);
+    return 0;
 }
