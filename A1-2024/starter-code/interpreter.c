@@ -17,17 +17,26 @@ int badcommandFileDoesNotExist(){
     return 3;
 }
 
-int badcommandTooManyTokens(){
+int badcommandTooManyTokens() {
     printf("Bad command: Too many tokens\n");
     return 4;
 }
 
+int badcommandTooFewTokens() {
+    printf("Bad command: Too few tokens\n");
+    return 5;
+}
+
+int badcommand();
+int badcommandFileDoesNotExist();
+int badcommandTooManyTokens();
+int badcommandTooFewTokens();
 int help();
 int quit();
 int set(char* command_args[], int args_size);
 int print(char* var);
 int run(char* script);
-int badcommandFileDoesNotExist();
+int echo(char* arg);
 
 // Interpret commands and their arguments
 int interpreter(char* command_args[], int args_size) {
@@ -67,6 +76,10 @@ int interpreter(char* command_args[], int args_size) {
         if (args_size != 2) return badcommand();
         return run(command_args[1]);
     
+    } else if (strcmp(command_args[0], "echo") == 0) {
+        if (args_size != 2) return badcommand();
+        return echo(command_args[1]);
+
     } else return badcommand();
 }
 
@@ -141,4 +154,30 @@ int run(char *script) {
     fclose(p);
 
     return errCode;
+}
+
+int echo(char *arg) {
+    int error_code = 0;
+
+    if (arg[0] == '\0') {
+        return badcommandTooFewTokens();
+    } else if (arg[0] == '$') {
+        size_t sizeof_var = sizeof(char) * strlen(arg);
+        char *var = malloc(sizeof_var);
+        memset(var, '\0', sizeof_var);
+        strcpy(var, (arg + 1)); // skip the '$' char
+
+        char *value = mem_get_value(var);
+        if (value) {
+            printf("%s\n", value);
+        } else {
+            printf("\n");
+        }
+        free(value);
+        free(var);
+
+    } else {
+        printf("%s\n", arg);
+    }
+    return error_code;
 }
