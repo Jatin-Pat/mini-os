@@ -3,6 +3,7 @@
 #include <string.h> 
 #include <dirent.h>
 #include <sys/stat.h>
+#include <unistd.h>
 #include "shellmemory.h"
 #include "shell.h"
 
@@ -42,6 +43,7 @@ int echo(char* arg);
 int my_ls();
 int my_touch(char* filename);
 int my_mkdir(char* dirname);
+int my_cd(char* dirname);
 
 // Interpret commands and their arguments
 int interpreter(char* command_args[], int args_size) {
@@ -96,6 +98,10 @@ int interpreter(char* command_args[], int args_size) {
     } else if (strcmp(command_args[0], "my_mkdir") == 0) {
         if (args_size != 2) return badcommand();
         return my_mkdir(command_args[1]);
+
+    } else if (strcmp(command_args[0], "my_cd") == 0) {
+        if (args_size != 2) return badcommand();
+        return my_cd(command_args[1]);
 
     } else return badcommand();
 }
@@ -244,4 +250,17 @@ int my_mkdir(char *dirname) {
         error_code = mkdir(dirname, 0777);
     }
     return error_code;
+}
+
+int my_cd(char *dirname) {
+    
+    if (dirname[0] == '\0') {
+        return badcommandTooFewTokens();
+    }
+
+    if (chdir(dirname) != 0) {
+        printf("%s\n", "Bad command: my_cd");
+    }
+
+    return 0;
 }
