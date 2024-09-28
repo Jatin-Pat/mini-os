@@ -4,7 +4,7 @@
 #include "shellmemory.h"
 #include "shell.h"
 
-int MAX_ARGS_SIZE = 3;
+int MAX_ARGS_SIZE = 7;
 
 int badcommand(){
     printf("Unknown Command\n");
@@ -17,9 +17,14 @@ int badcommandFileDoesNotExist(){
     return 3;
 }
 
+int badcommandTooManyTokens(){
+    printf("Bad command: Too many tokens\n");
+    return 4;
+}
+
 int help();
 int quit();
-int set(char* var, char* value);
+int set(char* command_args[], int args_size);
 int print(char* var);
 int run(char* script);
 int badcommandFileDoesNotExist();
@@ -28,8 +33,10 @@ int badcommandFileDoesNotExist();
 int interpreter(char* command_args[], int args_size) {
     int i;
 
-    if (args_size < 1 || args_size > MAX_ARGS_SIZE) {
+    if (args_size < 1) {
         return badcommand();
+    } else if (args_size > MAX_ARGS_SIZE) {
+        return badcommandTooManyTokens();
     }
 
     for (i = 0; i < args_size; i++) { // terminate args at newlines
@@ -48,8 +55,9 @@ int interpreter(char* command_args[], int args_size) {
 
     } else if (strcmp(command_args[0], "set") == 0) {
         //set
-        if (args_size != 3) return badcommand();	
-        return set(command_args[1], command_args[2]);
+        if (args_size < 3) return badcommand();
+        else if (args_size > 7) return badcommandTooManyTokens();
+        return set(command_args, args_size);
     
     } else if (strcmp(command_args[0], "print") == 0) {
         if (args_size != 2) return badcommand();
@@ -80,25 +88,33 @@ int quit() {
     exit(0);
 }
 
-int set(char *var, char *value) {
-    char *link = "=";
+int set(char *command_args[], int num_args) {
+    char *var = command_args[1];
+    size_t size_of_value = sizeof(char) * num_args * 100;
+    char *value = malloc(size_of_value);
+    memset(value, '\0', size_of_value);
+    int value_size = 0;
 
-    /* PART 1: You might want to write code that looks something like this.
-         You should look up documentation for strcpy and strcat.
-
-    char buffer[MAX_USER_INPUT];
-    strcpy(buffer, var);
-    strcat(buffer, link);
-    strcat(buffer, value);
-    */
+    for (int i = 2; i < num_args; i++){
+        strcat(value, command_args[i]);
+        strcat(value, " ");
+        value_size += (strlen(command_args[i]) + 1);
+    }
+    value[value_size - 1] = '\0'; // remove last space
 
     mem_set_value(var, value);
-
+    free(value);
     return 0;
 }
 
 int print(char *var) {
-    printf("%s\n", mem_get_value(var)); 
+    char *value = mem_get_value(var);
+    if (value) {
+        printf("%s\n", value);
+    } else {
+        printf("Variable does not exist\n");
+    }
+    free(value);
     return 0;
 }
 
