@@ -123,7 +123,11 @@ int set(char *command_args[], int num_args) {
 
 int print(char *var) {
     char *value = mem_get_value(var);
-    printf("%s\n", value);
+    if (value) {
+        printf("%s\n", value);
+    } else {
+        printf("Variable does not exist\n");
+    }
     free(value);
     return 0;
 }
@@ -164,8 +168,13 @@ int echo(char *arg) {
         memset(var, '\0', sizeof_var);
         strcpy(var, (arg + 1)); // skip the '$' char
 
-        print(var);
-
+        char *value = mem_get_value(var);
+        if (value) {
+            printf("%s\n", value);
+        } else {
+            printf("\n");
+        }
+        free(value);
         free(var);
 
     } else {
