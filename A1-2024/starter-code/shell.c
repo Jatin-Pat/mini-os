@@ -56,29 +56,36 @@ int parseInput(char inp[]) {
     int w = 0;
     int wordlen = 0;
     int errorCode = 0;
+    for (; inp[ix] == ' ' && ix < 1000; ix++); // skip white spaces
     while (inp[ix] != '\n' && inp[ix] != '\0' && ix < 1000) {
-        for (; inp[ix] == ' ' && ix < 1000; ix++); // skip white spaces
-
+        // extract a word
         for (wordlen = 0; !wordEnding(inp[ix]) && ix < 1000; ix++, wordlen++) {
-            tmp[wordlen] = inp[ix];
+            tmp[wordlen] = inp[ix];                        
         }
         tmp[wordlen] = '\0';
         words[w] = strdup(tmp);
         w++;
-
-        if (inp[ix] != ' ') { // if white space, continue processing command
-            errorCode = interpreter(words, w) || errorCode;
+        if (inp[ix] == '\0') break;
+        else if (inp[ix] == ';') { // process chained command
+            errorCode = interpreter(words, w) || errorCode; // if chaining and a command fails, keep that error code
 
             for (int i = 0; i < w; i++) {
                 free(words[i]);
                 words[i] = 0;
             }
-
-            if (inp[ix] == '\n' || inp[ix] == '\0') break;
-            // when ';' is encountered, reset word count and increment ix to skip over char
             w = 0;
-            ix++;
+            ix++; // skip over ';' character
         }
+
+        ix++;
+    }
+
+    // process last command 
+    errorCode = interpreter(words, w) || errorCode;
+
+    for (int i = 0; i < w; i++) {
+        free(words[i]);
+        words[i] = 0;
     }
     return errorCode;
 }
