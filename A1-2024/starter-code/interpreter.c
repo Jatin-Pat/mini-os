@@ -210,7 +210,7 @@ int my_ls() {
 
     n = scandir(".", &namelist, NULL, alphasort);
     
-    for (int i = 0; i < n; i++) {
+    for (int i = 2; i < n; i++) { // skip . and .. entries
         printf("%s\n", namelist[i]->d_name);
         free(namelist[i]);
     }
