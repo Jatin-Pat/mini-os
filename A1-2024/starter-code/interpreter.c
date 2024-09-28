@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h> 
 #include <dirent.h>
+#include <sys/stat.h>
 #include "shellmemory.h"
 #include "shell.h"
 
@@ -40,6 +41,7 @@ int run(char* script);
 int echo(char* arg);
 int my_ls();
 int my_touch(char* filename);
+int my_mkdir(char* dirname);
 
 // Interpret commands and their arguments
 int interpreter(char* command_args[], int args_size) {
@@ -90,6 +92,10 @@ int interpreter(char* command_args[], int args_size) {
     } else if (strcmp(command_args[0], "my_touch") == 0) {
         if (args_size != 2) return badcommand();
         return my_touch(command_args[1]);
+
+    } else if (strcmp(command_args[0], "my_mkdir") == 0) {
+        if (args_size != 2) return badcommand();
+        return my_mkdir(command_args[1]);
 
     } else return badcommand();
 }
@@ -169,8 +175,6 @@ int run(char *script) {
 }
 
 int echo(char *arg) {
-    int error_code = 0;
-
     if (arg[0] == '\0') {
         return badcommandTooFewTokens();
     } else if (arg[0] == '$') {
@@ -191,7 +195,7 @@ int echo(char *arg) {
     } else {
         printf("%s\n", arg);
     }
-    return error_code;
+    return 0;
 }
 
 int my_ls() {
@@ -216,4 +220,28 @@ int my_touch(char *filename) {
     FILE *file = fopen(filename, "w");
     fclose(file);
     return 0;
+}
+
+int my_mkdir(char *dirname) {
+    int error_code = 0;
+
+    if (dirname[0] == '\0') {
+        return badcommandTooFewTokens();
+    } else if (dirname[0] == '$') {
+        size_t sizeof_var = sizeof(char) * strlen(dirname);
+        char *var = malloc(sizeof_var);
+        memset(var, '\0', sizeof_var);
+        strcpy(var, (dirname + 1)); // skip the '$' char
+
+        char *value = mem_get_value(var);
+        if (value && strchr(value, ' ') == NULL) {
+            error_code = mkdir(value, 0777);
+        } else {
+            printf("%s\n", "Bad command: my_mkdir");
+        }
+
+    } else {
+        error_code = mkdir(dirname, 0777);
+    }
+    return error_code;
 }
