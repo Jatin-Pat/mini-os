@@ -97,6 +97,7 @@ run SCRIPT.TXT		Executes the file SCRIPT.TXT\n ";
 }
 
 int quit() {
+    mem_deinit();
     printf("Bye!\n");
     exit(0);
 }

@@ -29,6 +29,7 @@ int main(int argc, char *argv[]) {
         if (isatty(0)){
             printf("%c ", prompt);
         } else if (feof(stdin)) {
+            mem_deinit();
             break;
         }
         // here you should check the unistd library 
@@ -51,7 +52,8 @@ int wordEnding(char c) {
 int parseInput(char inp[]) {
     char tmp[200];
     char *words[100];
-    int ix = 0, w = 0;
+    int ix = 0;
+    int w = 0;
     int wordlen;
     int errorCode;
     for (ix = 0; inp[ix] == ' ' && ix < 1000; ix++); // skip white spaces
@@ -66,10 +68,12 @@ int parseInput(char inp[]) {
         if (inp[ix] == '\0') break;
         ix++; 
     }
+
     errorCode = interpreter(words, w);
 
     for (int i = 0; i < w; i++) {
         free(words[i]);
+        words[i] = 0;
     }
 
     return errorCode;
