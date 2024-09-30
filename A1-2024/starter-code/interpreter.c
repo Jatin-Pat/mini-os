@@ -1,18 +1,21 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h> 
+#include <dirent.h>
+#include <sys/stat.h>
+#include <unistd.h>
 #include "shellmemory.h"
 #include "shell.h"
 
 int MAX_ARGS_SIZE = 7;
 
-int badcommand(){
+int badcommand() {
     printf("Unknown Command\n");
     return 1;
 }
 
 // For run command only
-int badcommandFileDoesNotExist(){
+int badcommandFileDoesNotExist() {
     printf("Bad command: File not found\n");
     return 3;
 }
@@ -27,16 +30,26 @@ int badcommandTooFewTokens() {
     return 5;
 }
 
+int badcommandDirectoryAlreadyExist() {
+    printf("Bad command: Directory already exists\n");
+    return 6;
+}
+
 int badcommand();
 int badcommandFileDoesNotExist();
 int badcommandTooManyTokens();
 int badcommandTooFewTokens();
+int badcommandDirectoryAlreadyExist();
 int help();
 int quit();
 int set(char* command_args[], int args_size);
 int print(char* var);
 int run(char* script);
 int echo(char* arg);
+int my_ls();
+int my_touch(char* filename);
+int my_mkdir(char* dirname);
+int my_cd(char* dirname);
 
 // Interpret commands and their arguments
 int interpreter(char* command_args[], int args_size) {
@@ -79,6 +92,22 @@ int interpreter(char* command_args[], int args_size) {
     } else if (strcmp(command_args[0], "echo") == 0) {
         if (args_size != 2) return badcommand();
         return echo(command_args[1]);
+
+    } else if (strcmp(command_args[0], "my_ls") == 0) {
+        if (args_size != 1) return badcommand();
+        return my_ls();
+
+    } else if (strcmp(command_args[0], "my_touch") == 0) {
+        if (args_size != 2) return badcommand();
+        return my_touch(command_args[1]);
+
+    } else if (strcmp(command_args[0], "my_mkdir") == 0) {
+        if (args_size != 2) return badcommand();
+        return my_mkdir(command_args[1]);
+
+    } else if (strcmp(command_args[0], "my_cd") == 0) {
+        if (args_size != 2) return badcommand();
+        return my_cd(command_args[1]);
 
     } else return badcommand();
 }
@@ -158,8 +187,6 @@ int run(char *script) {
 }
 
 int echo(char *arg) {
-    int error_code = 0;
-
     if (arg[0] == '\0') {
         return badcommandTooFewTokens();
     } else if (arg[0] == '$') {
@@ -180,5 +207,74 @@ int echo(char *arg) {
     } else {
         printf("%s\n", arg);
     }
-    return error_code;
+    return 0;
+}
+
+int my_ls() {
+    struct dirent **namelist;
+    int n;
+
+    n = scandir(".", &namelist, NULL, alphasort);
+    
+    for (int i = 2; i < n; i++) { // skip . and .. entries
+        printf("%s\n", namelist[i]->d_name);
+        free(namelist[i]);
+    }
+
+    free(namelist[0]);
+    free(namelist[1]);
+    free(namelist);
+    return 0;
+}
+
+int my_touch(char *filename) {
+
+    if (filename[0] == '\0') {
+        return badcommandTooFewTokens();
+    }
+    FILE *file = fopen(filename, "w");
+    fclose(file);
+    return 0;
+}
+
+int my_mkdir(char *dirname) {
+    int res = 0;
+
+    if (dirname[0] == '\0') {
+        return badcommandTooFewTokens();
+    } else if (dirname[0] == '$') {
+        size_t sizeof_var = sizeof(char) * strlen(dirname);
+        char *var = malloc(sizeof_var);
+        memset(var, '\0', sizeof_var);
+        strcpy(var, (dirname + 1)); // skip the '$' char
+
+        char *value = mem_get_value(var);
+        if (value && strchr(value, ' ') == NULL) {
+            res = mkdir(value, 0777);
+        } else {
+            printf("Bad command: my_mkdir\n");
+        }
+
+    } else {
+        res = mkdir(dirname, 0777);
+    }
+
+    if (res == -1) {
+        return badcommandDirectoryAlreadyExist();
+    }
+
+    return 0;
+}
+
+int my_cd(char *dirname) {
+    
+    if (dirname[0] == '\0') {
+        return badcommandTooFewTokens();
+    }
+
+    if (chdir(dirname) != 0) {
+        printf("Bad command: my_cd\n");
+    }
+
+    return 0;
 }
