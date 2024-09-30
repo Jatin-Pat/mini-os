@@ -9,13 +9,13 @@
 
 int MAX_ARGS_SIZE = 7;
 
-int badcommand(){
+int badcommand() {
     printf("Unknown Command\n");
     return 1;
 }
 
 // For run command only
-int badcommandFileDoesNotExist(){
+int badcommandFileDoesNotExist() {
     printf("Bad command: File not found\n");
     return 3;
 }
@@ -30,10 +30,16 @@ int badcommandTooFewTokens() {
     return 5;
 }
 
+int badcommandDirectoryAlreadyExist() {
+    printf("Bad command: Directory already exists\n");
+    return 6;
+}
+
 int badcommand();
 int badcommandFileDoesNotExist();
 int badcommandTooManyTokens();
 int badcommandTooFewTokens();
+int badcommandDirectoryAlreadyExist();
 int help();
 int quit();
 int set(char* command_args[], int args_size);
@@ -232,7 +238,7 @@ int my_touch(char *filename) {
 }
 
 int my_mkdir(char *dirname) {
-    int error_code = 0;
+    int res = 0;
 
     if (dirname[0] == '\0') {
         return badcommandTooFewTokens();
@@ -244,15 +250,20 @@ int my_mkdir(char *dirname) {
 
         char *value = mem_get_value(var);
         if (value && strchr(value, ' ') == NULL) {
-            error_code = mkdir(value, 0777);
+            res = mkdir(value, 0777);
         } else {
             printf("Bad command: my_mkdir\n");
         }
 
     } else {
-        error_code = mkdir(dirname, 0777);
+        res = mkdir(dirname, 0777);
     }
-    return error_code;
+
+    if (res == -1) {
+        return badcommandDirectoryAlreadyExist();
+    }
+
+    return 0;
 }
 
 int my_cd(char *dirname) {
