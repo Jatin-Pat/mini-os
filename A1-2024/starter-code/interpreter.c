@@ -214,6 +214,9 @@ int my_ls() {
         printf("%s\n", namelist[i]->d_name);
         free(namelist[i]);
     }
+
+    free(namelist[0]);
+    free(namelist[1]);
     free(namelist);
     return 0;
 }
@@ -243,7 +246,7 @@ int my_mkdir(char *dirname) {
         if (value && strchr(value, ' ') == NULL) {
             error_code = mkdir(value, 0777);
         } else {
-            printf("%s\n", "Bad command: my_mkdir");
+            printf("Bad command: my_mkdir\n");
         }
 
     } else {
@@ -259,7 +262,7 @@ int my_cd(char *dirname) {
     }
 
     if (chdir(dirname) != 0) {
-        printf("%s\n", "Bad command: my_cd");
+        printf("Bad command: my_cd\n");
     }
 
     return 0;
