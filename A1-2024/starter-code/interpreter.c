@@ -214,6 +214,9 @@ int my_ls() {
         printf("%s\n", namelist[i]->d_name);
         free(namelist[i]);
     }
+
+    free(namelist[0]);
+    free(namelist[1]);
     free(namelist);
     return 0;
 }
