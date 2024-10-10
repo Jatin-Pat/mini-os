@@ -1,6 +1,7 @@
 #!/bin/bash
 
-test_dir="test-cases"
+test_dir="."
+source_code_dir="../starter-code"
 temp_file="temp.txt"
 
 red='\033[0;31m'
@@ -14,7 +15,7 @@ function run_test () {
 
     if [ -f $path_to_test ] && [ -f $path_to_ans ];
     then    
-        ./starter-code/mysh < ${path_to_test} > $temp_file
+        ./${source_code_dir}/mysh < ${path_to_test} > $temp_file
         d=$(git diff --no-index --ignore-all-space $temp_file ${path_to_ans})
         res=$? 
         rm $temp_file
@@ -52,6 +53,4 @@ else
 
     done
 fi
-
-
 
