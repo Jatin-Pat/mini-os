@@ -1,0 +1,4 @@
+run P_prog1
+run P_prog2
+run P_prog3
+quit
