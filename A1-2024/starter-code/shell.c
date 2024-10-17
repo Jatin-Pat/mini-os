@@ -5,14 +5,14 @@
 
 #include "shell.h"
 #include "interpreter.h"
+#include "scheduler_memory.h"
 #include "shellmemory.h"
 
 int parseInput(char ui[]);
 
 // Start of everything
 int main(int argc, char *argv[]) {
-    printf("Shell version 1.3 created September 2024\n");
-    help();
+    printf("Shell version 1.3 created September 2024\n\n");
 
     char prompt = '$';  				// Shell prompt
     char userInput[MAX_USER_INPUT];		// user's input stored here
@@ -23,6 +23,13 @@ int main(int argc, char *argv[]) {
         userInput[i] = '\0';
     }
     
+    // init scheduler memory
+    errorCode = process_code_mem_init();
+    if (errorCode) {
+        printf("ERROR when initializing process code memory. Exiting.");
+        exit(99);
+    }
+
     //init shell memory
     mem_init();
     while(1) {							

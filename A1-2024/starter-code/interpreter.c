@@ -4,42 +4,14 @@
 #include <dirent.h>
 #include <sys/stat.h>
 #include <unistd.h>
+
+#include "errors.h"
+#include "scheduler_memory.h"
 #include "shellmemory.h"
 #include "shell.h"
 
 int MAX_ARGS_SIZE = 7;
 
-int badcommand() {
-    printf("Unknown Command\n");
-    return 1;
-}
-
-// For run command only
-int badcommandFileDoesNotExist() {
-    printf("Bad command: File not found\n");
-    return 3;
-}
-
-int badcommandTooManyTokens() {
-    printf("Bad command: Too many tokens\n");
-    return 4;
-}
-
-int badcommandTooFewTokens() {
-    printf("Bad command: Too few tokens\n");
-    return 5;
-}
-
-int badcommandDirectoryAlreadyExist() {
-    printf("Bad command: Directory already exists\n");
-    return 6;
-}
-
-int badcommand();
-int badcommandFileDoesNotExist();
-int badcommandTooManyTokens();
-int badcommandTooFewTokens();
-int badcommandDirectoryAlreadyExist();
 int help();
 int quit();
 int set(char* command_args[], int args_size);
@@ -162,8 +134,13 @@ int print(char *var) {
 }
 
 int run(char *script) {
+    int pid;
     int errCode = 0;
     char line[MAX_USER_INPUT];
+    
+    errCode = load_script_into_memory(script, &pid);
+    if (errCode) { return errCode; }
+
     FILE *p = fopen(script, "rt");  // the program is in a file
 
     if (p == NULL) {
@@ -182,6 +159,8 @@ int run(char *script) {
     }
 
     fclose(p);
+    printf("PID PID PID %d", pid);
+    free_script_memory_at_index(pid);
 
     return errCode;
 }
