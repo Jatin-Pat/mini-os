@@ -1,0 +1,9 @@
+# Ctags helper file
+tags
+
+# compilation artifacts
+*.o
+mysh
+
+# vim artefacts
+*.swp

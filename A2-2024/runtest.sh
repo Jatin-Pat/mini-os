@@ -1,9 +1,7 @@
 #!/bin/bash
 
-QUIET=0
-
 test_dir="."
-script_dir="../starter-code"
+source_code_dir="../starter-code"
 temp_file="temp.txt"
 
 red='\033[0;31m'
@@ -17,7 +15,7 @@ function run_test () {
 
     if [ -f $path_to_test ] && [ -f $path_to_ans ];
     then    
-        ./${script_dir}/mysh < ${path_to_test} > $temp_file
+        ./${source_code_dir}/mysh < ${path_to_test} > $temp_file
         d=$(git diff --no-index --ignore-all-space $temp_file ${path_to_ans})
         res=$? 
         rm $temp_file
@@ -31,11 +29,7 @@ function run_test () {
     if [ $res -eq 0 ]; then 
         echo -e "${green}Test: ${test_name}: Passed ${nc}\n"
     else 
-        if [ $QUIET -eq 1 ]; then
-            echo -e "${red}Test: ${test_name}: FAILED ${nc}"
-        else 
-            echo -e "${red}Test: ${test_name}: FAILED ${nc} with output: \n ${d}\n"
-        fi
+        echo -e "${red}Test: ${test_name}: FAILED ${nc} with output: \n ${d}\n"
     fi
 
     return $res
@@ -51,7 +45,7 @@ if [ $# -ge 1 ]; then
     done 
 else
     echo "Did not receive arguments: running all tests in $test_dir"
-    for fname in $( ls $test_dir | grep -v -e "_result" -e "P_");
+    for fname in $( ls $test_dir | grep -v "_result" );
     do
         file_stem="${fname%.*}"
         # echo "running: $file_stem"  # uncomment for debugging
