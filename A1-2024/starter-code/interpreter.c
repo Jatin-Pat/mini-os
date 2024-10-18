@@ -137,7 +137,6 @@ int print(char *var) {
 int run(char *script) {
     int pid;
     int errCode = 0;
-    char line[MAX_USER_INPUT];
     
     errCode = find_free_pid(&pid);
     if (errCode) { return errCode; }
@@ -150,29 +149,7 @@ int run(char *script) {
 
     ready_queue_push(pid);
 
-    FILE *p = fopen(script, "rt");  // the program is in a file
-
-    if (p == NULL) {
-        return badcommandFileDoesNotExist();
-    }
-
-    fgets(line, MAX_USER_INPUT-1, p);
-    while (1) {
-        errCode = parseInput(line);	// which calls interpreter()
-        memset(line, 0, sizeof(line));
-
-        if (feof(p)) {
-            break;
-        }
-        fgets(line, MAX_USER_INPUT-1, p);
-    }
-
-    fclose(p);
-    free_script_memory_at_index(pid);
-    free_pcb_for_pid(pid);
-    int popped = 0;
-    ready_queue_pop(&popped);
-    printf("PID PID PID %d", popped);
+    errCode = run_scheduler();
 
     return errCode;
 }

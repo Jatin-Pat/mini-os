@@ -79,7 +79,9 @@ int load_script_into_memory(char *filename, int pid) {
         if (feof(p)) {
             break;
         }
-        fgets(line, MAX_USER_INPUT, p);
+        if (!fgets(line, MAX_USER_INPUT, p)) {
+            break;
+        }
     }
 
     fclose(p);
@@ -173,5 +175,39 @@ int ready_queue_pop(int *ppid) {
         ready_queue.tail = NULL;
     }
     return 0;
+}
+
+
+int run_scheduler() {
+    int error_code = 0;
+    int curr_pid;
+    char *line;
+    struct pcb_struct *curr_pcb;
+
+    while (ready_queue.size > 0) {
+        // currently FCFS, need to add other algo
+        // ready_queue_reorder() // no reorder because FCFS
+
+        if (ready_queue_pop(&curr_pid)) {
+            return 1; // error
+        }
+
+        curr_pcb = pcb_array[curr_pid];
+        
+        // FCFS: run code until done
+        while (curr_pcb->code_offset < MAX_LINES_PER_CODE && curr_pcb->code[curr_pcb->code_offset]){
+            line = curr_pcb->code[curr_pcb->code_offset];
+            error_code = parseInput(line);         
+            curr_pcb->code_offset++;
+        }
+        
+        // cleanup pcb when code is done
+        free_script_memory_at_index(pid);
+        free_pcb_for_pid(pid);
+
+
+    }
+    return error_code;
+        
 }
 

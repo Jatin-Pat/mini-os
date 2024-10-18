@@ -13,4 +13,5 @@ int free_script_memory_at_index(int index);
 int free_pcb_for_pid(int pid);
 int ready_queue_push(int pid);
 int ready_queue_pop(int *ppid);
+int run_scheduler();
 #endif
