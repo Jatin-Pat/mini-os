@@ -6,7 +6,8 @@
 #include <unistd.h>
 
 #include "errors.h"
-#include "scheduler_memory.h"
+#include "schedulermemory.h"
+#include "setup.h"
 #include "shellmemory.h"
 #include "shell.h"
 
@@ -98,7 +99,7 @@ run SCRIPT.TXT		Executes the file SCRIPT.TXT\n ";
 }
 
 int quit() {
-    mem_deinit();
+    deinit();
     printf("Bye!\n");
     exit(0);
 }
@@ -138,7 +139,13 @@ int run(char *script) {
     int errCode = 0;
     char line[MAX_USER_INPUT];
     
-    errCode = load_script_into_memory(script, &pid);
+    errCode = find_free_pid(&pid);
+    if (errCode) { return errCode; }
+
+    errCode = load_script_into_memory(script, pid);
+    if (errCode) { return errCode; }
+
+    errCode = create_pcb_for_pid(pid);
     if (errCode) { return errCode; }
 
     FILE *p = fopen(script, "rt");  // the program is in a file
@@ -161,6 +168,7 @@ int run(char *script) {
     fclose(p);
     printf("PID PID PID %d", pid);
     free_script_memory_at_index(pid);
+    free_pcb_for_pid(pid);
 
     return errCode;
 }

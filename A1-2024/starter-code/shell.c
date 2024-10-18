@@ -5,7 +5,8 @@
 
 #include "shell.h"
 #include "interpreter.h"
-#include "scheduler_memory.h"
+#include "schedulermemory.h"
+#include "setup.h"
 #include "shellmemory.h"
 
 int parseInput(char ui[]);
@@ -36,11 +37,9 @@ int main(int argc, char *argv[]) {
         if (isatty(0)){
             printf("%c ", prompt);
         } else if (feof(stdin)) {
-            mem_deinit();
+            deinit();
             break;
         }
-        // here you should check the unistd library 
-        // so that you can find a way to not display $ in the batch mode
         fgets(userInput, MAX_USER_INPUT-1, stdin);
         errorCode = parseInput(userInput);
         if (errorCode == -1) exit(99);	// ignore all other errors

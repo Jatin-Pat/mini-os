@@ -1,0 +1,116 @@
+#include <stddef.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+#include "errors.h"
+#include "schedulermemory.h"
+#include "shell.h"
+
+char **process_code_memory[MAX_NUM_PROCESSES];
+
+struct pcb {
+    int pid;
+    char **code;
+    int code_offset;
+};
+
+struct pcb *pcb_array[MAX_NUM_PROCESSES] = {NULL};
+
+int process_code_mem_init() {
+    for (int i = 0; i < MAX_NUM_PROCESSES; i++) {
+        process_code_memory[i] = (char **) calloc(MAX_LINES_PER_CODE, sizeof(char*));
+    }
+    return 0;
+}
+
+int process_code_mem_deinit() {
+    for (int i = 0; i < MAX_NUM_PROCESSES; i++) {
+        free(process_code_memory[i]);
+        process_code_memory[i] = NULL;
+    }
+    return 0;
+}
+
+/**
+* Finds the first available pid.
+* Places the index of that slot in pointer ppid
+* @return: 0 if success, 1 if out of PIDs
+*/
+int find_free_pid(int *ppid) {
+    for (int i = 0; i < MAX_NUM_PROCESSES; i++) {
+        if (!pcb_array[i]) {
+            *ppid = i;
+            return 0;
+        }
+    }
+    return 1;
+}
+
+int load_script_into_memory(char *filename, int pid) {
+    char line[MAX_USER_INPUT];
+    int error_code = 0;
+    int current_line = 0;
+
+    FILE *p = fopen(filename, "rt");
+    if (!p) {
+        return badcommandFileDoesNotExist();
+    }
+
+    // for each line in file, load into memory[free_index]
+    fgets(line, MAX_USER_INPUT, p);
+    while (1) {
+        process_code_memory[pid][current_line] = strdup(line);
+        current_line++;
+
+        memset(line, 0, sizeof(line));
+        if (feof(p)) {
+            break;
+        }
+        fgets(line, MAX_USER_INPUT, p);
+    }
+
+    fclose(p);
+    return error_code;
+}
+
+/**
+* Allocates memory for a new pcb in the PCB array
+* 
+* @return: 
+*   - 0 if success 
+*   - 1 if pcb_array already contains pid 
+*/
+int create_pcb_for_pid(int pid) {
+    if (pcb_array[pid]) {
+        return 1;
+    } 
+    struct pcb *curr_pcb = malloc(sizeof(struct pcb));
+    curr_pcb->pid = pid;
+    curr_pcb->code = process_code_memory[pid];
+    curr_pcb->code_offset = 0;
+
+    pcb_array[pid] = curr_pcb;
+    return 0;
+}
+
+int free_script_memory_at_index(int index) {
+    int error_code = 0;
+    char *pline;
+
+    for (int i = 0; i < MAX_LINES_PER_CODE; i++) {
+        pline = process_code_memory[index][i];
+        if (pline) {
+            free(pline);
+            process_code_memory[index][i] = NULL;
+        } 
+    }    
+    return error_code;
+}
+
+int free_pcb_for_pid(int pid) {
+    free(pcb_array[pid]);
+    pcb_array[pid] = NULL;
+    return 0;
+}
+
