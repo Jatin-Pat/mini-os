@@ -9,13 +9,25 @@
 
 char **process_code_memory[MAX_NUM_PROCESSES];
 
-struct pcb {
+struct pcb_struct {
     int pid;
     char **code;
     int code_offset;
 };
 
-struct pcb *pcb_array[MAX_NUM_PROCESSES] = {NULL};
+struct pcb_struct *pcb_array[MAX_NUM_PROCESSES] = {NULL};
+
+struct ready_queue_node {
+    int pid;
+    struct ready_queue_node *next;
+};
+
+struct ready_queue_struct {
+    struct ready_queue_node *head;
+    struct ready_queue_node *tail;
+    int size;
+} ready_queue = {NULL, NULL, 0};
+    
 
 int process_code_mem_init() {
     for (int i = 0; i < MAX_NUM_PROCESSES; i++) {
@@ -85,7 +97,7 @@ int create_pcb_for_pid(int pid) {
     if (pcb_array[pid]) {
         return 1;
     } 
-    struct pcb *curr_pcb = malloc(sizeof(struct pcb));
+    struct pcb_struct *curr_pcb = malloc(sizeof(struct pcb_struct));
     curr_pcb->pid = pid;
     curr_pcb->code = process_code_memory[pid];
     curr_pcb->code_offset = 0;
@@ -111,6 +123,55 @@ int free_script_memory_at_index(int index) {
 int free_pcb_for_pid(int pid) {
     free(pcb_array[pid]);
     pcb_array[pid] = NULL;
+    return 0;
+}
+
+/**
+* Pushes a new ready node with pid onto ready queue
+* 
+* @return: 
+*   - 0 when ok 
+*/
+int ready_queue_push(int pid) {
+    struct ready_queue_node *curr_node = malloc(sizeof(struct ready_queue_node));
+    curr_node->pid = pid;
+    curr_node->next = NULL;
+
+    if (!ready_queue.head) {
+        ready_queue.head = curr_node;
+    }
+
+    if (ready_queue.tail) {
+        ready_queue.tail->next = curr_node;
+    }
+
+    ready_queue.tail = curr_node;
+    ready_queue.size++;
+
+    return 0; 
+}
+
+/**
+* Pops the last element of the queue into ppid
+*
+* @returns:
+*   - 0 when ok
+*   - 1 when queue was already empty
+*/
+int ready_queue_pop(int *ppid) {
+    if (ready_queue.size <= 0) {
+        return 1;
+    }
+    
+    struct ready_queue_node *curr_node = ready_queue.head;
+    *ppid = curr_node->pid;
+    ready_queue.head = curr_node->next;
+    free(curr_node);
+    ready_queue.size--;
+    
+    if (ready_queue.size <= 0) {
+        ready_queue.tail = NULL;
+    }
     return 0;
 }
 

@@ -148,6 +148,8 @@ int run(char *script) {
     errCode = create_pcb_for_pid(pid);
     if (errCode) { return errCode; }
 
+    ready_queue_push(pid);
+
     FILE *p = fopen(script, "rt");  // the program is in a file
 
     if (p == NULL) {
@@ -166,9 +168,11 @@ int run(char *script) {
     }
 
     fclose(p);
-    printf("PID PID PID %d", pid);
     free_script_memory_at_index(pid);
     free_pcb_for_pid(pid);
+    int popped = 0;
+    ready_queue_pop(&popped);
+    printf("PID PID PID %d", popped);
 
     return errCode;
 }
