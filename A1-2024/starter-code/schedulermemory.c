@@ -202,8 +202,8 @@ int run_scheduler() {
         }
         
         // cleanup pcb when code is done
-        free_script_memory_at_index(pid);
-        free_pcb_for_pid(pid);
+        free_script_memory_at_index(curr_pid);
+        free_pcb_for_pid(curr_pid);
 
 
     }
