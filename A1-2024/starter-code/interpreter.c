@@ -82,7 +82,13 @@ int interpreter(char* command_args[], int args_size) {
         if (args_size != 2) return badcommand();
         return my_cd(command_args[1]);
 
-    } else return badcommand();
+    } else if (strcmp(command_args[0], "exec") == 0) {
+        if (args_size < 3) return badcommand();
+        else if (args_size > 5) return badcommandTooManyTokens();
+        return exec(command_args, args_size);
+    } 
+    
+    else return badcommand();
 }
 
 int help() {
@@ -148,8 +154,9 @@ int run(char *script) {
     if (errCode) { return errCode; }
 
     ready_queue_push(pid);
+    char *policy = "FCFS";
 
-    errCode = run_scheduler();
+    errCode = run_scheduler(policy);
 
     return errCode;
 }
@@ -245,4 +252,43 @@ int my_cd(char *dirname) {
     }
 
     return 0;
+}
+
+int exec(char *command_args[], int num_args) {
+    char *policy = command_args[num_args - 1];
+
+    if (strcmp(policy, "FCFS") != 0 &&
+        strcmp(policy, "SJF") != 0 &&
+        strcmp(policy, "RR") != 0 &&
+        strcmp(policy, "AGING") != 0) {
+        return badcommand();
+    }
+
+    for (int i = 1; i < num_args - 1; i++) {
+        for (int j = i + 1; j < num_args - 1; j++) {
+            if (strcmp(command_args[i], command_args[j]) == 0) {
+                return badcommand();
+            }
+        }
+    }
+
+    int errCode = 0; 
+    for (int i = 1; i < num_args; i++) {
+        int pid;
+
+        errCode = find_free_pid(&pid);
+        if (errCode) { return errCode; }
+
+        errCode = load_script_into_memory(command_args[i], pid);
+        if (errCode) { return errCode; }
+
+        errCode = create_pcb_for_pid(pid);
+        if (errCode) { return errCode; }
+
+        ready_queue_push(pid);
+    }
+
+    errCode = run_scheduler(policy);
+
+    return errCode;
 }

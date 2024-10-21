@@ -177,8 +177,7 @@ int ready_queue_pop(int *ppid) {
     return 0;
 }
 
-
-int run_scheduler() {
+int run_scheduler(char *policy) {
     int error_code = 0;
     int curr_pid;
     char *line;
@@ -202,8 +201,8 @@ int run_scheduler() {
         }
         
         // cleanup pcb when code is done
-        free_script_memory_at_index(pid);
-        free_pcb_for_pid(pid);
+        free_script_memory_at_index(curr_pid);
+        free_pcb_for_pid(curr_pid);
 
 
     }
