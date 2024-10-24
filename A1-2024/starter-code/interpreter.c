@@ -23,6 +23,7 @@ int my_ls();
 int my_touch(char* filename);
 int my_mkdir(char* dirname);
 int my_cd(char* dirname);
+int exec(char *command_args[], int num_args);
 
 // Interpret commands and their arguments
 int interpreter(char* command_args[], int args_size) {
@@ -273,7 +274,7 @@ int exec(char *command_args[], int num_args) {
     }
 
     int errCode = 0; 
-    for (int i = 1; i < num_args; i++) {
+    for (int i = 1; i < num_args - 1; i++) {
         int pid;
 
         errCode = find_free_pid(&pid);
