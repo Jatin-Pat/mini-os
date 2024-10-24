@@ -4,42 +4,15 @@
 #include <dirent.h>
 #include <sys/stat.h>
 #include <unistd.h>
+
+#include "errors.h"
+#include "schedulermemory.h"
+#include "setup.h"
 #include "shellmemory.h"
 #include "shell.h"
 
 int MAX_ARGS_SIZE = 7;
 
-int badcommand() {
-    printf("Unknown Command\n");
-    return 1;
-}
-
-// For run command only
-int badcommandFileDoesNotExist() {
-    printf("Bad command: File not found\n");
-    return 3;
-}
-
-int badcommandTooManyTokens() {
-    printf("Bad command: Too many tokens\n");
-    return 4;
-}
-
-int badcommandTooFewTokens() {
-    printf("Bad command: Too few tokens\n");
-    return 5;
-}
-
-int badcommandDirectoryAlreadyExist() {
-    printf("Bad command: Directory already exists\n");
-    return 6;
-}
-
-int badcommand();
-int badcommandFileDoesNotExist();
-int badcommandTooManyTokens();
-int badcommandTooFewTokens();
-int badcommandDirectoryAlreadyExist();
 int help();
 int quit();
 int set(char* command_args[], int args_size);
@@ -50,6 +23,7 @@ int my_ls();
 int my_touch(char* filename);
 int my_mkdir(char* dirname);
 int my_cd(char* dirname);
+int exec(char *command_args[], int num_args);
 
 // Interpret commands and their arguments
 int interpreter(char* command_args[], int args_size) {
@@ -109,7 +83,13 @@ int interpreter(char* command_args[], int args_size) {
         if (args_size != 2) return badcommand();
         return my_cd(command_args[1]);
 
-    } else return badcommand();
+    } else if (strcmp(command_args[0], "exec") == 0) {
+        if (args_size < 3) return badcommand();
+        else if (args_size > 5) return badcommandTooManyTokens();
+        return exec(command_args, args_size);
+    } 
+    
+    else return badcommand();
 }
 
 int help() {
@@ -126,7 +106,7 @@ run SCRIPT.TXT		Executes the file SCRIPT.TXT\n ";
 }
 
 int quit() {
-    mem_deinit();
+    deinit();
     printf("Bye!\n");
     exit(0);
 }
@@ -162,26 +142,22 @@ int print(char *var) {
 }
 
 int run(char *script) {
+    int pid;
     int errCode = 0;
-    char line[MAX_USER_INPUT];
-    FILE *p = fopen(script, "rt");  // the program is in a file
+    
+    errCode = find_free_pid(&pid);
+    if (errCode) { return errCode; }
 
-    if (p == NULL) {
-        return badcommandFileDoesNotExist();
-    }
+    errCode = load_script_into_memory(script, pid);
+    if (errCode) { return errCode; }
 
-    fgets(line, MAX_USER_INPUT-1, p);
-    while (1) {
-        errCode = parseInput(line);	// which calls interpreter()
-        memset(line, 0, sizeof(line));
+    errCode = create_pcb_for_pid(pid);
+    if (errCode) { return errCode; }
 
-        if (feof(p)) {
-            break;
-        }
-        fgets(line, MAX_USER_INPUT-1, p);
-    }
+    ready_queue_push(pid);
+    char *policy = "FCFS";
 
-    fclose(p);
+    errCode = run_scheduler(policy);
 
     return errCode;
 }
@@ -277,4 +253,43 @@ int my_cd(char *dirname) {
     }
 
     return 0;
+}
+
+int exec(char *command_args[], int num_args) {
+    char *policy = command_args[num_args - 1];
+
+    if (strcmp(policy, "FCFS") != 0 &&
+        strcmp(policy, "SJF") != 0 &&
+        strcmp(policy, "RR") != 0 &&
+        strcmp(policy, "AGING") != 0) {
+        return badcommand();
+    }
+
+    for (int i = 1; i < num_args - 1; i++) {
+        for (int j = i + 1; j < num_args - 1; j++) {
+            if (strcmp(command_args[i], command_args[j]) == 0) {
+                return badcommand();
+            }
+        }
+    }
+
+    int errCode = 0; 
+    for (int i = 1; i < num_args - 1; i++) {
+        int pid;
+
+        errCode = find_free_pid(&pid);
+        if (errCode) { return errCode; }
+
+        errCode = load_script_into_memory(command_args[i], pid);
+        if (errCode) { return errCode; }
+
+        errCode = create_pcb_for_pid(pid);
+        if (errCode) { return errCode; }
+
+        ready_queue_push(pid);
+    }
+
+    errCode = run_scheduler(policy);
+
+    return errCode;
 }
