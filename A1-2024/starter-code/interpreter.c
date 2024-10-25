@@ -24,6 +24,8 @@ int my_touch(char* filename);
 int my_mkdir(char* dirname);
 int my_cd(char* dirname);
 int exec(char *command_args[], int num_args);
+int create_process_from_filename(char *filename, int *ppid);
+int create_process_from_current_file(int *ppid);
 
 // Interpret commands and their arguments
 int interpreter(char* command_args[], int args_size) {
@@ -255,8 +257,32 @@ int my_cd(char *dirname) {
     return 0;
 }
 
+/**
+* Executes the scripts passed according to a policy. Can be run in the background, or multithreaded.
+* 
+* @param command_args The command line arguments with which exec was called
+* @param num_args The size of command_args. 
+*
+* @return 0 for success, or an error code.
+*/
 int exec(char *command_args[], int num_args) {
-    char *policy = command_args[num_args - 1];
+    char *policy;
+    int policy_index = num_args - 1;
+    char executes_in_background = 0;
+    char executes_multithreaded = 0;
+    int error_code = 0; 
+
+    if (strcmp(command_args[policy_index], "MT") == 0) {
+        executes_multithreaded = 1;
+        policy_index -= 1;
+    }
+
+    if (*command_args[policy_index] == '#') {
+        executes_in_background = 1;
+        policy_index -= 1; 
+    }
+
+    policy = command_args[policy_index];
 
     if (strcmp(policy, "FCFS") != 0 &&
         strcmp(policy, "SJF") != 0 &&
@@ -265,31 +291,93 @@ int exec(char *command_args[], int num_args) {
         return badcommand();
     }
 
-    for (int i = 1; i < num_args - 1; i++) {
-        for (int j = i + 1; j < num_args - 1; j++) {
+    // throw an error if two scripts have the same name
+    for (int i = 1; i < policy_index; i++) {
+        for (int j = i + 1; j < policy_index; j++) {
             if (strcmp(command_args[i], command_args[j]) == 0) {
                 return badcommand();
             }
         }
     }
 
-    int errCode = 0; 
-    for (int i = 1; i < num_args - 1; i++) {
-        int pid;
+    int pid;
+    
+    if (executes_in_background) { 
+        error_code = create_process_from_current_file(&pid);
+        ready_queue_prepend(pid);
+    } 
 
-        errCode = find_free_pid(&pid);
-        if (errCode) { return errCode; }
-
-        errCode = load_script_into_memory(command_args[i], pid);
-        if (errCode) { return errCode; }
-
-        errCode = create_pcb_for_pid(pid);
-        if (errCode) { return errCode; }
-
+    for (int i = 1; i < policy_index; i++) {
+        error_code = create_process_from_filename(command_args[i], &pid);
+        if (error_code) { return error_code; }
         ready_queue_push(pid);
     }
 
-    errCode = run_scheduler(policy);
+    if (executes_multithreaded) {
+       ; // TODO implement
+    }
+        
 
-    return errCode;
+    error_code = run_scheduler(policy);
+
+    // stop running after queue becomes empty: current process was run.
+    if (executes_in_background) {
+        deinit();
+        exit(0);
+    }
+
+    return error_code;
 }
+
+/**
+* Allocates a PCB for the process, and loads the script into memory.
+*
+* @param filename the filename of the file to load
+* @param ppid a pointer to the pid. Gets updated with the pid of the new process.
+*
+* @return:
+*   - 0 when ok
+*   - error code when not ok
+*/
+int create_process_from_filename(char *filename, int *ppid) {
+    int error_code = 0;
+    int pid;
+
+    error_code = find_free_pid(&pid);
+    if (error_code) { return error_code; }
+
+    error_code = create_pcb_for_pid(pid);
+    if (error_code) { return error_code; }
+
+    error_code = load_script_into_memory(filename, pid);
+    if (error_code) { return error_code; }
+
+    *ppid = pid;   
+    return 0; 
+}
+
+/**
+* Allocates a PCB for the process, and loads the script into memory.
+*
+* @param ppid a pointer to the pid. Gets updated with the pid of the new process.
+*
+* @return:
+*   - 0 when ok
+*   - error code when not ok
+*/
+int create_process_from_current_file(int *ppid) {
+    int error_code = 0;
+    int pid;
+
+    error_code = find_free_pid(&pid);
+    if (error_code) { return error_code; }
+
+    error_code = create_pcb_for_pid(pid);
+    if (error_code) { return error_code; }
+
+    error_code = load_current_script_into_memory(pid);
+    if (error_code) { return error_code; }
+
+    *ppid = pid;
+    return 0;
+} 

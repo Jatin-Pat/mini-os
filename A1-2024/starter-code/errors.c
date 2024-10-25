@@ -25,3 +25,8 @@ int badcommandDirectoryAlreadyExist() {
     printf("Bad command: Directory already exists\n");
     return 6;
 }
+
+int exceptionCannotLoadInteractiveScript() {
+    printf("An exception occurred: Cannot load a script into memory when not in batch mode.\n");
+    return 7;
+}
