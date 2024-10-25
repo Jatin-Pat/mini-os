@@ -193,7 +193,7 @@ int run_scheduler(char *policy) {
         return round_robin_policy();
 
     } else if (strcmp(policy, "AGING") == 0) {
-        return 0;
+        return aging_policy();
 
     } else {
         return badcommand();
@@ -235,6 +235,47 @@ int ready_queue_reorder_sjf() {
 
     return 0;
 }
+
+int ready_queue_reorder_aging() {
+    if (ready_queue.size <= 1) {
+        return 0;
+    }
+
+    int pid;
+    int curr_size = 0;
+    int jobs_array[ready_queue.size][2];
+
+    // Pop all processes from the queue and apply aging to all but the first one
+    while (ready_queue.size > 0) {
+        if (ready_queue_pop(&pid)) {
+            return 1; // Error
+        }
+
+        // Apply aging for all jobs except the first one
+        if (curr_size != 0 && pcb_array[pid]->job_length_score > 0) {
+            pcb_array[pid]->job_length_score -= 1;
+        }
+
+        jobs_array[curr_size][0] = pid;
+        jobs_array[curr_size][1] = pcb_array[pid]->job_length_score;
+        curr_size++;
+    }
+
+    for (int i = 1; i < curr_size; i++) {
+        if (jobs_array[i][1] < jobs_array[0][1]) {
+            qsort(jobs_array, curr_size, sizeof(jobs_array[0]), job_length_compare);
+            break;
+        }
+    }
+    
+    // Push sorted jobs back into ready_queue
+    for (int i = 0; i < curr_size; i++) {
+        ready_queue_push(jobs_array[i][0]);
+    }
+
+    return 0;
+}
+
 
 int sequential_policy() {
     int curr_pid;
@@ -290,10 +331,44 @@ int round_robin_policy() {
         if (curr_pcb->code_offset >= MAX_LINES_PER_CODE || curr_pcb->code[curr_pcb->code_offset] == NULL) {
             free_script_memory_at_index(curr_pid);
             free_pcb_for_pid(curr_pid);
+
         } else {
             // Push back into ready queue if still code left
             ready_queue_push(curr_pid);
         }
+    }
+
+    return error_code;
+}
+
+int aging_policy() {
+    int curr_pid;
+    char *line;
+    struct pcb_struct *curr_pcb;
+    int error_code = 0;
+
+    // Initial SJF ordering based on job length scores
+    ready_queue_reorder_sjf();
+
+    while (ready_queue.size > 0) {
+        curr_pcb = pcb_array[ready_queue.head->pid];
+
+        // Run one instruction (one time slice) for the current job
+        if (curr_pcb->code_offset < MAX_LINES_PER_CODE && curr_pcb->code[curr_pcb->code_offset]) {
+            line = curr_pcb->code[curr_pcb->code_offset];
+            error_code = parseInput(line);
+            curr_pcb->code_offset++;
+        }
+
+        // Check if the current job has finished
+        if (curr_pcb->code_offset >= MAX_LINES_PER_CODE || curr_pcb->code[curr_pcb->code_offset] == NULL) {
+            // Job is complete, free the resources
+            ready_queue_pop(&curr_pid);
+            free_script_memory_at_index(curr_pid);
+            free_pcb_for_pid(curr_pid);
+        }
+
+        ready_queue_reorder_aging();
     }
 
     return error_code;
