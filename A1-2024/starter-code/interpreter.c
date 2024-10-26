@@ -148,10 +148,11 @@ int run(char *script) {
     errCode = find_free_pid(&pid);
     if (errCode) { return errCode; }
 
-    errCode = load_script_into_memory(script, pid);
+    int line_count;
+    errCode = load_script_into_memory(script, pid, &line_count);
     if (errCode) { return errCode; }
 
-    errCode = create_pcb_for_pid(pid);
+    errCode = create_pcb_for_pid(pid, line_count);
     if (errCode) { return errCode; }
 
     ready_queue_push(pid);
@@ -280,10 +281,11 @@ int exec(char *command_args[], int num_args) {
         errCode = find_free_pid(&pid);
         if (errCode) { return errCode; }
 
-        errCode = load_script_into_memory(command_args[i], pid);
+        int line_count;
+        errCode = load_script_into_memory(command_args[i], pid, &line_count);
         if (errCode) { return errCode; }
 
-        errCode = create_pcb_for_pid(pid);
+        errCode = create_pcb_for_pid(pid, line_count);
         if (errCode) { return errCode; }
 
         ready_queue_push(pid);

@@ -13,6 +13,7 @@ struct pcb_struct {
     int pid;
     char **code;
     int code_offset;
+    int job_length_score;
 };
 
 struct pcb_struct *pcb_array[MAX_NUM_PROCESSES] = {NULL};
@@ -59,7 +60,7 @@ int find_free_pid(int *ppid) {
     return 1;
 }
 
-int load_script_into_memory(char *filename, int pid) {
+int load_script_into_memory(char *filename, int pid, int *line_count) {
     char line[MAX_USER_INPUT];
     int error_code = 0;
     int current_line = 0;
@@ -85,6 +86,8 @@ int load_script_into_memory(char *filename, int pid) {
     }
 
     fclose(p);
+
+    *line_count = current_line;
     return error_code;
 }
 
@@ -95,7 +98,7 @@ int load_script_into_memory(char *filename, int pid) {
 *   - 0 if success 
 *   - 1 if pcb_array already contains pid 
 */
-int create_pcb_for_pid(int pid) {
+int create_pcb_for_pid(int pid, int line_count) {
     if (pcb_array[pid]) {
         return 1;
     } 
@@ -103,6 +106,7 @@ int create_pcb_for_pid(int pid) {
     curr_pcb->pid = pid;
     curr_pcb->code = process_code_memory[pid];
     curr_pcb->code_offset = 0;
+    curr_pcb->job_length_score = line_count;
 
     pcb_array[pid] = curr_pcb;
     return 0;
@@ -178,35 +182,119 @@ int ready_queue_pop(int *ppid) {
 }
 
 int run_scheduler(char *policy) {
-    int error_code = 0;
+    if (strcmp(policy, "FCFS") == 0) {
+        return sequential_policy();
+
+    } else if (strcmp(policy, "SJF") == 0) {
+        ready_queue_reorder_sjf(policy);
+        return sequential_policy();
+
+    } else if (strcmp(policy, "RR") == 0) {
+        return round_robin_policy();
+
+    } else if (strcmp(policy, "AGING") == 0) {
+        return 0;
+
+    } else {
+        return badcommand();
+    }
+
+    return 0;
+}
+
+int job_length_compare(const void *a, const void *b) {
+    return ((int*)a)[1] - ((int*)b)[1];
+}
+
+int ready_queue_reorder_sjf() {
+    if (ready_queue.size <= 1) {
+        return 0;
+    }
+
+    int curr_pid;
+    int curr_size = 0;
+    int jobs_array[ready_queue.size][2];
+
+    while (ready_queue.size > 0) {
+        if (ready_queue_pop(&curr_pid)) {
+            return 1;
+        }
+
+        jobs_array[curr_size][0] = curr_pid;
+        jobs_array[curr_size][1] = pcb_array[curr_pid]->job_length_score;
+        curr_size++;
+    }
+
+    // sort jobs_array by job_length_score in ascending order
+    qsort(jobs_array, curr_size, sizeof(jobs_array[0]), job_length_compare);
+
+    // push sorted jobs back into ready_queue
+    for (int i = 0; i < curr_size; i++) {
+        ready_queue_push(jobs_array[i][0]);
+    }
+
+    return 0;
+}
+
+int sequential_policy() {
     int curr_pid;
     char *line;
     struct pcb_struct *curr_pcb;
+    int error_code = 0;
 
     while (ready_queue.size > 0) {
-        // currently FCFS, need to add other algo
-        // ready_queue_reorder() // no reorder because FCFS
-
         if (ready_queue_pop(&curr_pid)) {
             return 1; // error
         }
 
         curr_pcb = pcb_array[curr_pid];
-        
-        // FCFS: run code until done
-        while (curr_pcb->code_offset < MAX_LINES_PER_CODE && curr_pcb->code[curr_pcb->code_offset]){
+
+        // Execute the program code until done
+        while (curr_pcb->code_offset < MAX_LINES_PER_CODE && curr_pcb->code[curr_pcb->code_offset]) {
             line = curr_pcb->code[curr_pcb->code_offset];
             error_code = parseInput(line);         
             curr_pcb->code_offset++;
         }
-        
-        // cleanup pcb when code is done
+
+        // Cleanup pcb when code is done
         free_script_memory_at_index(curr_pid);
         free_pcb_for_pid(curr_pid);
-
-
     }
+
     return error_code;
-        
 }
 
+int round_robin_policy() {
+    int curr_pid;
+    char *line;
+    struct pcb_struct *curr_pcb;
+    int error_code = 0;
+
+    while (ready_queue.size > 0) {
+        if (ready_queue_pop(&curr_pid)) {
+            return 1; // error
+        }
+        int timer = 2;
+
+        curr_pcb = pcb_array[curr_pid];
+
+        // Execute the program code until timer runs out
+        while (curr_pcb->code_offset < MAX_LINES_PER_CODE && curr_pcb->code[curr_pcb->code_offset] && timer > 0) {
+            line = curr_pcb->code[curr_pcb->code_offset];
+            error_code = parseInput(line);         
+            curr_pcb->code_offset++;
+            timer--;
+        }
+
+        // Cleanup pcb when no more code left in process and timer is still running
+        if (curr_pcb->code_offset >= MAX_LINES_PER_CODE || curr_pcb->code[curr_pcb->code_offset] == NULL) {
+            free_script_memory_at_index(curr_pid);
+            free_pcb_for_pid(curr_pid);
+        } else {
+            // Push back into ready queue if still code left
+            ready_queue_push(curr_pid);
+        }
+    }
+
+    return error_code;
+}
