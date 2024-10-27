@@ -26,7 +26,18 @@ int badcommandDirectoryAlreadyExist() {
     return 6;
 }
 
-int exceptionCannotLoadInteractiveScript() {
-    printf("An exception occurred: Cannot load a script into memory when not in batch mode.\n");
+int badcommandInvalidPolicy() {
+    printf("Bad command: Invalid policy\n");
     return 7;
 }
+
+int badcommandDuplicateProgramsInExec() {
+    printf("Bad command: Duplicate programs in exec\n");
+    return 8;
+}
+
+int exceptionCannotLoadInteractiveScript() {
+    printf("An exception occurred: Cannot load a script into memory when not in batch mode.\n");
+    return 9;
+}
+
