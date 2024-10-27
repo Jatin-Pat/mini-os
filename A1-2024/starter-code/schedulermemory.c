@@ -309,7 +309,6 @@ int ready_queue_reorder_sjf() {
         return 0;
     }
 
-    int curr_pid;
     int curr_size = 0;
     int jobs_array[ready_queue.size][2];
 
@@ -335,7 +334,6 @@ int ready_queue_reorder_sjf() {
 }
 
 int sequential_policy() {
-    int curr_pid;
     char *line;
     struct pcb_struct *curr_pcb;
     int error_code = 0;
@@ -362,7 +360,6 @@ int sequential_policy() {
 }
 
 int round_robin_policy() {
-    int curr_pid;
     char *line;
     struct pcb_struct *curr_pcb;
     int error_code = 0;

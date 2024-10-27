@@ -306,7 +306,7 @@ int exec(char *command_args[], int num_args) {
     if (executes_in_background) { 
         error_code = create_process_from_current_file(&pid);
         ready_queue_prepend(pid);
-    } 
+    }
 
     for (int i = 1; i < policy_index; i++) {
         error_code = create_process_from_filename(command_args[i], &pid);
