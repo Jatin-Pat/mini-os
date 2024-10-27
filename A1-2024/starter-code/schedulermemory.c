@@ -187,6 +187,7 @@ int ready_queue_pop(int *ppid) {
 * @param policy: the policy to run
 * @return:
 *   - 0 when ok
+*   - 1 or 7 when error
 */
 int run_scheduler(char *policy) {
     if (strcmp(policy, "FCFS") == 0) {
@@ -367,6 +368,7 @@ int round_robin_policy() {
 * Jobs are only poped if completed; allowing current job to continue if it has the lowest score after ready_queue_reorder_aging().
 * @return:
 *   - 0 if success
+*   - 1 if error
 */
 int aging_policy() {
     int curr_pid;

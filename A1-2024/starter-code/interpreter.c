@@ -322,6 +322,7 @@ int my_cd(char *dirname) {
 *   - num_args: the number of arguments in command_args
 * @return:
 *   - 0 if success
+*   - 1, 7 or 8 if error
 */
 int exec(char *command_args[], int num_args) {
     char *policy = command_args[num_args - 1];
