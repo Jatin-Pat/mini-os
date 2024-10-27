@@ -301,7 +301,7 @@ int run_scheduler(char *policy) {
         error_code = round_robin_policy(30);
     
     } else if (strcmp(policy, "AGING") == 0) {
-        return aging_policy();
+        error_code = aging_policy();
 
     } else {
         return badcommandInvalidPolicy();
