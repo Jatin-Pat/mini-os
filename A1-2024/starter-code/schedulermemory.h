@@ -7,8 +7,8 @@
 int process_code_mem_init();
 int process_code_mem_deinit();
 int find_free_pid(int *ppid);
-int create_pcb_for_pid(int pid);
-int load_script_into_memory(char *filename, int pid);
+int create_pcb_for_pid(int pid, int line_count);
+int load_script_into_memory(char *filename, int pid, int *line_count);
 int load_current_script_into_memory(int pid);
 int free_script_memory_at_index(int index);
 int free_pcb_for_pid(int pid);
@@ -17,4 +17,7 @@ int ready_queue_prepend(int pid);
 int ready_queue_pop(int *ppid);
 int ready_queue_peek(int *ppid);
 int run_scheduler();
+int ready_queue_reorder_sjf();
+int sequential_policy();
+int round_robin_policy();
 #endif

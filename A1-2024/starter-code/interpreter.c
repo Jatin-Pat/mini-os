@@ -150,10 +150,11 @@ int run(char *script) {
     errCode = find_free_pid(&pid);
     if (errCode) { return errCode; }
 
-    errCode = load_script_into_memory(script, pid);
+    int line_count;
+    errCode = load_script_into_memory(script, pid, &line_count);
     if (errCode) { return errCode; }
 
-    errCode = create_pcb_for_pid(pid);
+    errCode = create_pcb_for_pid(pid, line_count);
     if (errCode) { return errCode; }
 
     ready_queue_push(pid);
@@ -342,14 +343,15 @@ int exec(char *command_args[], int num_args) {
 int create_process_from_filename(char *filename, int *ppid) {
     int error_code = 0;
     int pid;
+    int line_count;
 
     error_code = find_free_pid(&pid);
     if (error_code) { return error_code; }
 
-    error_code = create_pcb_for_pid(pid);
+    error_code = create_pcb_for_pid(pid, 0);
     if (error_code) { return error_code; }
 
-    error_code = load_script_into_memory(filename, pid);
+    error_code = load_script_into_memory(filename, pid, &line_count);
     if (error_code) { return error_code; }
 
     *ppid = pid;   
@@ -372,7 +374,7 @@ int create_process_from_current_file(int *ppid) {
     error_code = find_free_pid(&pid);
     if (error_code) { return error_code; }
 
-    error_code = create_pcb_for_pid(pid);
+    error_code = create_pcb_for_pid(pid, 0);
     if (error_code) { return error_code; }
 
     error_code = load_current_script_into_memory(pid);
