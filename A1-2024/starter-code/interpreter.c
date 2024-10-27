@@ -40,12 +40,10 @@ int interpreter(char* command_args[], int args_size) {
     }
 
     if (strcmp(command_args[0], "help") == 0){
-        //help
         if (args_size != 1) return badcommand();
         return help();
     
     } else if (strcmp(command_args[0], "quit") == 0) {
-        //quit
         if (args_size != 1) return badcommand();
         return quit();
 
@@ -111,6 +109,15 @@ int quit() {
     exit(0);
 }
 
+/**
+* Sets a variable to a value.
+*
+* @param:
+*   - command_args: an array of the variable name and the value to set
+*   - num_args: the number of arguments in command_args
+* @return:
+*   - 0 if success
+*/
 int set(char *command_args[], int num_args) {
     char *var = command_args[1];
     size_t size_of_value = sizeof(char) * num_args * 100;
@@ -130,6 +137,13 @@ int set(char *command_args[], int num_args) {
     return 0;
 }
 
+/**
+* Prints the value of a variable.
+*
+* @param var: the name of the variable to print
+* @return:
+*   - 0 if success
+*/
 int print(char *var) {
     char *value = mem_get_value(var);
     if (value) {
@@ -141,6 +155,13 @@ int print(char *var) {
     return 0;
 }
 
+/**
+* Runs a script file with the given name.
+*
+* @param script: the name of the script file to run
+* @return:
+*   - 0 if success
+*/
 int run(char *script) {
     int pid;
     int errCode = 0;
@@ -163,6 +184,13 @@ int run(char *script) {
     return errCode;
 }
 
+/**
+* display strings passed as argument to the command line.
+*
+* @param arg: the string to display
+* @return:
+*   - 0 if success
+*/
 int echo(char *arg) {
     if (arg[0] == '\0') {
         return badcommandTooFewTokens();
@@ -187,33 +215,56 @@ int echo(char *arg) {
     return 0;
 }
 
+/**
+* Lists all the files present in the current directory.
+*
+* @return:
+*   - 0 if success
+*/
 int my_ls() {
     struct dirent **namelist;
     int n;
 
     n = scandir(".", &namelist, NULL, alphasort);
     
-    for (int i = 2; i < n; i++) { // skip . and .. entries
+    // Since scandir also contains . and .. entries, which we omit, we start from index 2.
+    for (int i = 2; i < n; i++) {
         printf("%s\n", namelist[i]->d_name);
         free(namelist[i]);
     }
 
+    // must free . and .. entries we skipped.
     free(namelist[0]);
     free(namelist[1]);
     free(namelist);
     return 0;
 }
 
+/**
+* Creates a new empty file inside the current directory.
+*
+* @param filename: the name of the file to create
+* @return:
+*   - 0 if success
+*/
 int my_touch(char *filename) {
 
     if (filename[0] == '\0') {
         return badcommandTooFewTokens();
     }
+    // fopen creates the file if it does not exist
     FILE *file = fopen(filename, "w");
     fclose(file);
     return 0;
 }
 
+/**
+* Creates a new directory with the name dirname in the current directory.
+*
+* @param dirname: the name of the directory to create
+* @return:
+*   - 0 if success
+*/
 int my_mkdir(char *dirname) {
     int res = 0;
 
@@ -243,6 +294,13 @@ int my_mkdir(char *dirname) {
     return 0;
 }
 
+/**
+* Changes current directory to directory specified in dirname.
+*
+* @param dirname: the directory to change to
+* @return:
+*   - 0 if success
+*/
 int my_cd(char *dirname) {
     
     if (dirname[0] == '\0') {
@@ -256,6 +314,15 @@ int my_cd(char *dirname) {
     return 0;
 }
 
+/**
+* Executes up to 3 concurrent programs, according to a given scheduling policy.
+* 
+* @param:
+*   - command_args: an array of program names and a scheduling policy
+*   - num_args: the number of arguments in command_args
+* @return:
+*   - 0 if success
+*/
 int exec(char *command_args[], int num_args) {
     char *policy = command_args[num_args - 1];
 
@@ -263,13 +330,13 @@ int exec(char *command_args[], int num_args) {
         strcmp(policy, "SJF") != 0 &&
         strcmp(policy, "RR") != 0 &&
         strcmp(policy, "AGING") != 0) {
-        return badcommand();
+        return badcommandInvalidPolicy();
     }
 
     for (int i = 1; i < num_args - 1; i++) {
         for (int j = i + 1; j < num_args - 1; j++) {
             if (strcmp(command_args[i], command_args[j]) == 0) {
-                return badcommand();
+                return badcommandDuplicateProgramsInExec();
             }
         }
     }
@@ -281,6 +348,8 @@ int exec(char *command_args[], int num_args) {
         errCode = find_free_pid(&pid);
         if (errCode) { return errCode; }
 
+        // load_script_into_memory() will set line_count with the number of lines in the script
+        // and the line_count will be used to set the job_length_score in create_pcb_for_pid().
         int line_count;
         errCode = load_script_into_memory(command_args[i], pid, &line_count);
         if (errCode) { return errCode; }

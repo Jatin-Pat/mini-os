@@ -25,3 +25,13 @@ int badcommandDirectoryAlreadyExist() {
     printf("Bad command: Directory already exists\n");
     return 6;
 }
+
+int badcommandInvalidPolicy() {
+    printf("Bad command: Invalid policy\n");
+    return 7;
+}
+
+int badcommandDuplicateProgramsInExec() {
+    printf("Bad command: Duplicate programs in exec\n");
+    return 8;
+}

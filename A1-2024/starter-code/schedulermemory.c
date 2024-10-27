@@ -181,6 +181,13 @@ int ready_queue_pop(int *ppid) {
     return 0;
 }
 
+/**
+* Runs the scheduler for a policy.
+* 
+* @param policy: the policy to run
+* @return:
+*   - 0 when ok
+*/
 int run_scheduler(char *policy) {
     if (strcmp(policy, "FCFS") == 0) {
         return sequential_policy();
@@ -196,16 +203,27 @@ int run_scheduler(char *policy) {
         return aging_policy();
 
     } else {
-        return badcommand();
+        return badcommandInvalidPolicy();
     }
 
     return 0;
 }
 
+/**
+* comparison function for qsort
+*
+* @return:
+*   - 0 if a == b
+*   - <0 if a < b
+*   - >0 if a > b
+*/
 int job_length_compare(const void *a, const void *b) {
     return ((int*)a)[1] - ((int*)b)[1];
 }
 
+/**
+* Reorders the ready queue in acsending order of job length score.
+*/
 void ready_queue_reorder_sjf() {
     if (ready_queue.size <= 1) {
         return;
@@ -215,12 +233,17 @@ void ready_queue_reorder_sjf() {
     int curr_pid;
     int curr_index = 0;
 
+    // Pop jobs from ready queue and store as pid, job_length_score pair.
+    // An array is used to simplify operations with qsort, over directly sorting the ready_queue linked list.
+    // We need to store the job pid so that after reordering we know which job the job_length_score belongs to.
     while (ready_queue.size > 0) {
         ready_queue_pop(&curr_pid);
         jobs_array[curr_index][0] = curr_pid;
         jobs_array[curr_index][1] = pcb_array[curr_pid]->job_length_score;
         curr_index++;
     }
+    
+    // Each element in jobs_array has size equal to a pair of pid, job_length_score by construction.
     qsort(jobs_array, curr_index, sizeof(jobs_array[0]), job_length_compare);
 
     for (int i = 0; i < curr_index; i++) {
@@ -228,6 +251,11 @@ void ready_queue_reorder_sjf() {
     }
 }
 
+/**
+* Reorders the ready queue with lowest job length score placed at the head.
+*
+* @param pid: the pid of the job that just ran.
+*/
 void ready_queue_reorder_aging(int pid) {
     if (ready_queue.size <= 1) {
         return;
@@ -240,6 +268,7 @@ void ready_queue_reorder_aging(int pid) {
     while (ready_queue.size > 0) {
         ready_queue_pop(&curr_pid);
         
+        // Decrement job_length_score for all jobs except the one that just ran .
         if (curr_pid != pid && pcb_array[curr_pid]->job_length_score > 0) {
             pcb_array[curr_pid]->job_length_score--;
         }
@@ -248,7 +277,6 @@ void ready_queue_reorder_aging(int pid) {
         jobs_array[curr_index][1] = pcb_array[curr_pid]->job_length_score;
         curr_index++;
     }
-    
     qsort(jobs_array, curr_index, sizeof(jobs_array[0]), job_length_compare);
 
     for (int i = 0; i < curr_index; i++) {
@@ -256,6 +284,15 @@ void ready_queue_reorder_aging(int pid) {
     }
 }
 
+/**
+* Sequentially runs each job until completion in the order they were loaded in the ready queue.
+*
+* If policy is FCFS, the ready queue is already in the correct order.
+* If policy is SJF, ready_queue_reorder_sjf() must be called prior to reorder the ready queue in ascending order of job length score.
+* @return: 
+*   - 0 if success
+*   - 1 if error
+*/
 int sequential_policy() {
     int curr_pid;
     char *line;
@@ -264,7 +301,7 @@ int sequential_policy() {
 
     while (ready_queue.size > 0) {
         if (ready_queue_pop(&curr_pid)) {
-            return 1;
+            return 1; // error
         }
 
         curr_pcb = pcb_array[curr_pid];
@@ -274,6 +311,7 @@ int sequential_policy() {
             error_code = parseInput(line);         
             curr_pcb->code_offset++;
         }
+        // Job is done, free up resources
         free_script_memory_at_index(curr_pid);
         free_pcb_for_pid(curr_pid);
     }
@@ -281,6 +319,14 @@ int sequential_policy() {
     return error_code;
 }
 
+/**
+* Runs each job for a time slice of 2 instructions.
+*
+* If a job is not completed in the time slice, it is pushed back in the back of the ready queue.
+* @return:
+*   - 0 if success
+*   - 1 if error
+*/
 int round_robin_policy() {
     int curr_pid;
     char *line;
@@ -289,7 +335,7 @@ int round_robin_policy() {
 
     while (ready_queue.size > 0) {
         if (ready_queue_pop(&curr_pid)) {
-            return 1;
+            return 1; // error
         }
         int timer = 2;
         curr_pcb = pcb_array[curr_pid];
@@ -313,6 +359,15 @@ int round_robin_policy() {
     return error_code;
 }
 
+/**
+* Runs the head job in the ready queue for a time slice of 1 instruction, aging all other jobs each iteration.
+*
+* If job with lower job length score is present after ready_queue_reorder_aging(), current process is preempted, 
+* and lowest job length score placed at the head for next iteration.
+* Jobs are only poped if completed; allowing current job to continue if it has the lowest score after ready_queue_reorder_aging().
+* @return:
+*   - 0 if success
+*/
 int aging_policy() {
     int curr_pid;
     char *line;
