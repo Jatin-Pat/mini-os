@@ -14,7 +14,9 @@ int free_pcb_for_pid(int pid);
 int ready_queue_push(int pid);
 int ready_queue_pop(int *ppid);
 int run_scheduler();
-int ready_queue_reorder_sjf();
+void ready_queue_reorder_sjf();
+void ready_queue_reorder_aging();
 int sequential_policy();
 int round_robin_policy();
+int aging_policy();
 #endif
