@@ -287,8 +287,11 @@ int run_scheduler(char *policy) {
         error_code = sequential_policy();
 
     } else if (strcmp(policy, "RR") == 0) {
-        error_code = round_robin_policy();
+        error_code = round_robin_policy(2);
 
+    } else if (strcmp(policy, "RR30") == 0) {
+        error_code = round_robin_policy(30);
+    
     } else if (strcmp(policy, "AGING") == 0) {
         error_code = 0;
 
@@ -359,25 +362,26 @@ int sequential_policy() {
     return error_code;
 }
 
-int round_robin_policy() {
+int round_robin_policy(int max_timer) {
     char *line;
     struct pcb_struct *curr_pcb;
     int error_code = 0;
+    int timer = max_timer;
 
     while (ready_queue.size > 0) {
         if (ready_queue_pop(&curr_pid)) {
             return 1; // error
         }
-        int timer = 2;
 
         curr_pcb = pcb_array[curr_pid];
+        timer = max_timer;
 
         // Execute the program code until timer runs out
         while (curr_pcb->code_offset < MAX_LINES_PER_CODE && curr_pcb->code[curr_pcb->code_offset] && timer > 0) {
             line = curr_pcb->code[curr_pcb->code_offset];
-            error_code = parseInput(line);         
             curr_pcb->code_offset++;
             timer--;
+            error_code = parseInput(line);         
         }
 
         // Cleanup pcb when no more code left in process and timer is still running

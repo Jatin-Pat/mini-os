@@ -1,8 +1,8 @@
 #ifndef SCHEDULERMEMORY_H
 #define SCHEDULERMEMORY_H
 
-#define MAX_NUM_PROCESSES 4
-#define MAX_LINES_PER_CODE 100
+#define MAX_NUM_PROCESSES 5
+#define MAX_LINES_PER_CODE 200
 
 int process_code_mem_init();
 int process_code_mem_deinit();
@@ -19,5 +19,5 @@ int ready_queue_peek(int *ppid);
 int run_scheduler();
 int ready_queue_reorder_sjf();
 int sequential_policy();
-int round_robin_policy();
+int round_robin_policy(int max_timer);
 #endif

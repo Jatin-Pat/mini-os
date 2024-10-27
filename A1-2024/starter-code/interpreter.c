@@ -87,7 +87,7 @@ int interpreter(char* command_args[], int args_size) {
 
     } else if (strcmp(command_args[0], "exec") == 0) {
         if (args_size < 3) return badcommand();
-        else if (args_size > 5) return badcommandTooManyTokens();
+        else if (args_size > 7) return badcommandTooManyTokens();
         return exec(command_args, args_size);
     } 
     
@@ -288,6 +288,7 @@ int exec(char *command_args[], int num_args) {
     if (strcmp(policy, "FCFS") != 0 &&
         strcmp(policy, "SJF") != 0 &&
         strcmp(policy, "RR") != 0 &&
+        strcmp(policy, "RR30") != 0 &&
         strcmp(policy, "AGING") != 0) {
         return badcommand();
     }
