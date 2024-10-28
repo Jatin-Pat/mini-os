@@ -1,5 +1,5 @@
 CC=gcc
-CFLAGS= -g -Wall
+CFLAGS= -g -Wall -pthread
 
 mysh: shell.c interpreter.c shellmemory.c schedulermemory.c errors.c setup.c
 	$(CC) $(CFLAGS) -c shell.c interpreter.c shellmemory.c schedulermemory.c errors.c setup.c

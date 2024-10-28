@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h> 
 #include <dirent.h>
+#include <pthread.h>
 #include <sys/stat.h>
 #include <unistd.h>
 
@@ -26,6 +27,11 @@ int my_cd(char* dirname);
 int exec(char *command_args[], int num_args);
 int create_process_from_filename(char *filename, int *ppid);
 int create_process_from_current_file(int *ppid);
+void *run_multithreaded_scheduler(void *arg);
+
+
+char executes_multithreaded = 0;
+pthread_t worker1, worker2;
 
 // Interpret commands and their arguments
 int interpreter(char* command_args[], int args_size) {
@@ -328,7 +334,6 @@ int exec(char *command_args[], int num_args) {
     char *policy;
     int policy_index = num_args - 1;
     char executes_in_background = 0;
-    char executes_multithreaded = 0;
     int error_code = 0; 
 
     if (strcmp(command_args[policy_index], "MT") == 0) {
@@ -374,12 +379,22 @@ int exec(char *command_args[], int num_args) {
     }
 
     if (executes_multithreaded) {
-       ; // TODO implement
+        error_code = pthread_create(&worker1, NULL, run_multithreaded_scheduler, (void *) policy);        
+        if (error_code) { return badcommand(); }
+
+        error_code = pthread_create(&worker2, NULL, run_multithreaded_scheduler, (void *) policy);        
+        if (error_code) { return badcommand(); }
+
+        error_code = pthread_join(worker1, NULL);
+        if (error_code) { return badcommand(); }
+
+        error_code = pthread_join(worker2, NULL);
+        if (error_code) { return badcommand(); }
+
+    } else {
+        error_code = run_scheduler(policy);
     }
         
-
-    error_code = run_scheduler(policy);
-
     // stop running after queue becomes empty: current process was run.
     if (executes_in_background) {
         deinit();
@@ -442,3 +457,9 @@ int create_process_from_current_file(int *ppid) {
     *ppid = pid;
     return 0;
 } 
+
+void *run_multithreaded_scheduler(void *arg) {
+    char * policy = (char *) arg;
+    run_scheduler(policy);    
+    return (void *) NULL;
+}

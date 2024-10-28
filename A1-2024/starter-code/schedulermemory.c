@@ -30,7 +30,7 @@ struct ready_queue_struct {
     int size;
 } ready_queue = {NULL, NULL, 0};
     
-int curr_pid = -1;
+__thread int curr_pid = -1;
 
 int process_code_mem_init() {
     for (int i = 0; i < MAX_NUM_PROCESSES; i++) {
