@@ -13,7 +13,16 @@ struct memory_struct shellmemory[MEM_SIZE];
 
 pthread_mutex_t shellmemory_lock = PTHREAD_MUTEX_INITIALIZER;
 
-// Helper functions
+/**
+* Compares two strings to see if they are equal.
+*
+* @param:
+*   - model: the string to compare against
+*   - var: the string to compare
+* @return:
+*   - 1 if the strings are equal
+*   - 0 if the strings are not equal
+*/
 int match(char *model, char *var) {
     int len = strlen(var);
     int matchCount = 0;
@@ -23,8 +32,9 @@ int match(char *model, char *var) {
     return (matchCount == len);
 }
 
-// Shell memory functions
-
+/**
+* Initializes the shell memory.
+*/
 void mem_init() {
     for (int i = 0; i < MEM_SIZE; i++){
         shellmemory[i].var   = NULL;
@@ -32,6 +42,9 @@ void mem_init() {
     }
 }
 
+/**
+* Deinitializes the shell memory.
+*/
 void mem_deinit() {
     for (int i = 0; i < MEM_SIZE; i++) {
         free(shellmemory[i].var);
@@ -42,7 +55,13 @@ void mem_deinit() {
     }
 }
 
-// Set key value pair
+/**
+* Sets key value pair in shell memory.
+*
+* @param:
+*   - var_in: the key to set
+*   - value_in: the value to set
+*/
 void mem_set_value(char *var_in, char *value_in) {
     int i;
 
@@ -70,7 +89,15 @@ void mem_set_value(char *var_in, char *value_in) {
     return;
 }
 
-//get value based on input key
+/**
+* Gets the value of a key in shell memory.
+*
+* @param:
+*   - var_in: the key to get the value of
+* @return:
+*   - the value of the key
+*   - NULL if the key does not exist
+*/
 char *mem_get_value(char *var_in) {
     int i;
 

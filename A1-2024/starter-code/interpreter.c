@@ -40,7 +40,15 @@ pthread_t worker1, worker2;
 pthread_mutex_t print_lock = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t awaits_quit_lock = PTHREAD_MUTEX_INITIALIZER;
 
-// Interpret commands and their arguments
+/**
+* Interprets the command and their arguments.
+* @param:
+*   - command_args: an array of the command and its arguments
+*   - args_size: the number of arguments in command_args
+* @return:
+*   - 0 if success
+*   - error code when not ok 
+*/
 int interpreter(char* command_args[], int args_size) {
     int i;
 
@@ -105,6 +113,12 @@ int interpreter(char* command_args[], int args_size) {
     else return badcommand();
 }
 
+/**
+* Displays basic commands that the shell can interpret.
+* @return:
+*   - 0 if success
+*   - error code when not ok
+*/
 int help() {
 
     // note the literal tab characters here for alignment
@@ -118,6 +132,12 @@ run SCRIPT.TXT		Executes the file SCRIPT.TXT\n ";
     return 0;
 }
 
+/**
+* Exits the shell.
+* @return:
+*   - 0 if success
+*   - error code when not ok
+*/
 int quit() {
     // don't actually deinit and quit if this is not the main_thread
     if (executes_multithreaded && !pthread_equal(main_thread, pthread_self())) {
@@ -138,6 +158,7 @@ int quit() {
 *   - num_args: the number of arguments in command_args
 * @return:
 *   - 0 if success
+*   - error code when not ok
 */
 int set(char *command_args[], int num_args) {
     char *var = command_args[1];
@@ -164,6 +185,7 @@ int set(char *command_args[], int num_args) {
 * @param var: the name of the variable to print
 * @return:
 *   - 0 if success
+*   - error code when not ok
 */
 int print(char *var) {
     char *value = mem_get_value(var);
@@ -182,6 +204,7 @@ int print(char *var) {
 * @param script: the name of the script file to run
 * @return:
 *   - 0 if success
+*   - error code when not ok
 */
 int run(char *script) {
     int pid;
@@ -211,6 +234,7 @@ int run(char *script) {
 * @param arg: the string to display
 * @return:
 *   - 0 if success
+*   - error code when not ok
 */
 int echo(char *arg) {
     pthread_mutex_lock(&print_lock); 
@@ -243,6 +267,7 @@ int echo(char *arg) {
 *
 * @return:
 *   - 0 if success
+*   - error code when not ok
 */
 int my_ls() {
     struct dirent **namelist;
@@ -269,6 +294,7 @@ int my_ls() {
 * @param filename: the name of the file to create
 * @return:
 *   - 0 if success
+*   - error code when not ok
 */
 int my_touch(char *filename) {
 
@@ -287,6 +313,7 @@ int my_touch(char *filename) {
 * @param dirname: the name of the directory to create
 * @return:
 *   - 0 if success
+*   - error code when not ok
 */
 int my_mkdir(char *dirname) {
     int res = 0;
@@ -323,6 +350,7 @@ int my_mkdir(char *dirname) {
 * @param dirname: the directory to change to
 * @return:
 *   - 0 if success
+*   - error code when not ok
 */
 int my_cd(char *dirname) {
     
@@ -343,7 +371,9 @@ int my_cd(char *dirname) {
 * @param command_args The command line arguments with which exec was called
 * @param num_args The size of command_args. 
 *
-* @return 0 for success, or an error code.
+* @return:
+*  - 0 for success
+*  - error code when not ok
 */
 int exec(char *command_args[], int num_args) {
     char *policy;
@@ -398,16 +428,16 @@ int exec(char *command_args[], int num_args) {
 
     if (executes_multithreaded && pthread_equal(main_thread, pthread_self())) {
         error_code = pthread_create(&worker1, NULL, run_multithreaded_scheduler, (void *) policy);        
-        if (error_code) { return badcommand(); }
+        if (error_code) { return badcommandThreadError(); }
 
         error_code = pthread_create(&worker2, NULL, run_multithreaded_scheduler, (void *) policy);        
-        if (error_code) { return badcommand(); }
+        if (error_code) { return badcommandThreadError(); }
 
         error_code = pthread_join(worker1, NULL);
-        if (error_code) { return badcommand(); }
+        if (error_code) { return badcommandThreadError(); }
 
         error_code = pthread_join(worker2, NULL);
-        if (error_code) { return badcommand(); }
+        if (error_code) { return badcommandThreadError(); }
 
         if (get_awaits_quit()) {
             quit();
@@ -480,19 +510,32 @@ int create_process_from_current_file(int *ppid) {
     return 0;
 } 
 
+/**
+* Runs the scheduler for a policy.
+*/
 void *run_multithreaded_scheduler(void *arg) {
     char * policy = (char *) arg;
     run_scheduler(policy);    
     return (void *) NULL;
 }
 
+/**
+* Sets the value of the awaits_quit variable.
+* 
+* @param val the value to set
+*/
 void set_awaits_quit(char val) {
     pthread_mutex_lock(&awaits_quit_lock);
     awaits_quit = val;
     pthread_mutex_unlock(&awaits_quit_lock);
 }
 
-
+/**
+* Gets the value of the awaits_quit variable.
+*
+* @return:
+*   - the value of the awaits_quit variable
+*/
 char get_awaits_quit() {
     pthread_mutex_lock(&awaits_quit_lock);
     char val = awaits_quit;

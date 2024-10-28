@@ -50,12 +50,28 @@ int main(int argc, char *argv[]) {
     return 0;
 }
 
+/**
+* Determines if a character is a word ending character.
+*
+* @param c the character to check 
+* @return:
+*   - 0 if c is not a word ending character
+*   - 1 if c is a word ending character
+*/
 int wordEnding(char c) {
     // You may want to add ';' to this at some point,
     // or you may want to find a different way to implement chains.
     return c == '\0' || c == '\n' || c == ' ' || c == ';';
 }
 
+/**
+* Parses the input into words and interprets them.
+*
+* @param inp the input to parse
+* @return:
+*   - 0 if success
+*   - error code when not ok
+*/
 int parseInput(char inp[]) {
     char tmp[200];
     char *words[100];

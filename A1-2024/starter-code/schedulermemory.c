@@ -15,7 +15,7 @@ struct pcb_struct {
     int pid;
     char **code;
     int code_offset;
-    int job_length_score;
+    int job_length_score; // initialized to line_count
 };
 
 struct pcb_struct *pcb_array[MAX_NUM_PROCESSES] = {NULL};
@@ -35,6 +35,11 @@ pthread_mutex_t ready_queue_lock = PTHREAD_MUTEX_INITIALIZER;
     
 __thread int curr_pid = -1;
 
+/**
+* Initializes the process code memory.
+* @return: 
+*   - 0
+*/
 int process_code_mem_init() {
     for (int i = 0; i < MAX_NUM_PROCESSES; i++) {
         process_code_memory[i] = (char **) calloc(MAX_LINES_PER_CODE, sizeof(char*));
@@ -42,6 +47,11 @@ int process_code_mem_init() {
     return 0;
 }
 
+/**
+* Deinitializes the process code memory.
+* @return:
+*   - 0
+*/
 int process_code_mem_deinit() {
     for (int i = 0; i < MAX_NUM_PROCESSES; i++) {
         free(process_code_memory[i]);
@@ -53,7 +63,9 @@ int process_code_mem_deinit() {
 /**
 * Finds the first available pid.
 * Places the index of that slot in pointer ppid
-* @return: 0 if success, 1 if out of PIDs
+* @return: 
+*   - 0 if success
+*   - error code when not ok
 */
 int find_free_pid(int *ppid) {
     for (int i = 0; i < MAX_NUM_PROCESSES; i++) {
@@ -62,7 +74,7 @@ int find_free_pid(int *ppid) {
             return 0;
         }
     }
-    return 1;
+    return badcommandOutOfPIDs();
 }
 
 /**
@@ -162,6 +174,13 @@ int create_pcb_for_pid(int pid, int line_count) {
     return 0;
 }
 
+/**
+* Frees the memory allocated for a script at an index.
+*
+* @param index the index of the script to free
+* @return:
+*   - 0
+*/
 int free_script_memory_at_index(int index) {
     int error_code = 0;
     char *pline;
@@ -176,6 +195,13 @@ int free_script_memory_at_index(int index) {
     return error_code;
 }
 
+/**
+* Frees the memory allocated for a pcb at a pid.
+*
+* @param pid the pid of the pcb to free
+* @return:
+*   - 0
+*/
 int free_pcb_for_pid(int pid) {
     free(pcb_array[pid]);
     pcb_array[pid] = NULL;
@@ -218,7 +244,7 @@ int ready_queue_push(int pid) {
 *
 * @param pid the pid to place in front of the queue
 *
-* @returns:
+* @return:
 *   - 0 when 0k 
 */
 int ready_queue_prepend(int pid) {
@@ -241,7 +267,7 @@ int ready_queue_prepend(int pid) {
 /**
 * Pops the next element of the queue into ppid
 *
-* @returns:
+* @return:
 *   - 0 when ok
 *   - 1 when queue was already empty
 */
@@ -267,7 +293,7 @@ int ready_queue_pop(int *ppid) {
 /**
 * Peeks the next element of the queue into ppid. Does not modify the queue.
 *
-* @returns:
+* @return:
 *   - 0 when ok
 *   - 1 when queue was already empty
 */
@@ -286,6 +312,8 @@ int ready_queue_peek(int *ppid) {
 
 /**
 * Gets the size of the ready queue in a thread-safe way.
+*
+* @returs: the size of the ready queue
 */
 int get_ready_queue_size() {
     pthread_mutex_lock(&ready_queue_lock);
@@ -300,7 +328,7 @@ int get_ready_queue_size() {
 * @param policy: the policy to run
 * @return:
 *   - 0 when ok
-*   - 1 or 7 when error
+*   - error code when not ok
 */
 int run_scheduler(char *policy) {
     int error_code = 0;

@@ -5,7 +5,6 @@ int badcommand() {
     return 1;
 }
 
-// For run command only
 int badcommandFileDoesNotExist() {
     printf("Bad command: File not found\n");
     return 3;
@@ -36,8 +35,18 @@ int badcommandDuplicateProgramsInExec() {
     return 8;
 }
 
+int badcommandOutOfPIDs() {
+    printf("An exception occurred: Out of PIDs\n");
+    return 9;
+}
+
+int badcommandThreadError() {
+    printf("There was an error handling a thread function!\n");
+    return 10;
+}
+
 int exceptionCannotLoadInteractiveScript() {
     printf("An exception occurred: Cannot load a script into memory when not in batch mode.\n");
-    return 9;
+    return 11;
 }
 

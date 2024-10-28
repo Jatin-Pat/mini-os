@@ -8,6 +8,8 @@ int badcommandTooFewTokens();
 int badcommandDirectoryAlreadyExist();
 int exceptionCannotLoadInteractiveScript();
 int badcommandInvalidPolicy();
+int badcommandOutOfPIDs();
+int badcommandThreadError();
 int badcommandDuplicateProgramsInExec();
 
 #endif
