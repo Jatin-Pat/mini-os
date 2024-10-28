@@ -1,3 +1,4 @@
+#include <pthread.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
@@ -9,6 +10,8 @@ struct memory_struct {
 };
 
 struct memory_struct shellmemory[MEM_SIZE];
+
+pthread_mutex_t shellmemory_lock = PTHREAD_MUTEX_INITIALIZER;
 
 // Helper functions
 int match(char *model, char *var) {
@@ -43,10 +46,12 @@ void mem_deinit() {
 void mem_set_value(char *var_in, char *value_in) {
     int i;
 
+    pthread_mutex_lock(&shellmemory_lock);
     for (i = 0; i < MEM_SIZE; i++){
         if (shellmemory[i].var && strcmp(shellmemory[i].var, var_in) == 0){
             free(shellmemory[i].value);
             shellmemory[i].value = strdup(value_in);
+            pthread_mutex_unlock(&shellmemory_lock);
             return;
         } 
     }
@@ -56,10 +61,12 @@ void mem_set_value(char *var_in, char *value_in) {
         if (!shellmemory[i].var){
             shellmemory[i].var   = strdup(var_in);
             shellmemory[i].value = strdup(value_in);
+            pthread_mutex_unlock(&shellmemory_lock);
             return;
         } 
     }
 
+    pthread_mutex_unlock(&shellmemory_lock);
     return;
 }
 
@@ -67,10 +74,14 @@ void mem_set_value(char *var_in, char *value_in) {
 char *mem_get_value(char *var_in) {
     int i;
 
+    pthread_mutex_lock(&shellmemory_lock);
     for (i = 0; i < MEM_SIZE; i++){
         if (shellmemory[i].var && strcmp(shellmemory[i].var, var_in) == 0){
+            pthread_mutex_unlock(&shellmemory_lock);
             return strdup(shellmemory[i].value);
         } 
     }
+    
+    pthread_mutex_unlock(&shellmemory_lock);
     return NULL;
 }
