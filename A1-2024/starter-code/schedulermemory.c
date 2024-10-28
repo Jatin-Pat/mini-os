@@ -464,10 +464,10 @@ int round_robin_policy(int max_timer) {
 
         while (curr_pcb->code_offset < MAX_LINES_PER_CODE && curr_pcb->code[curr_pcb->code_offset] && timer > 0) {
             line = curr_pcb->code[curr_pcb->code_offset];
+            usleep(1000);
             curr_pcb->code_offset++;
             timer--;
             error_code = parseInput(line);         
-            usleep(1000);
         }
 
         if (curr_pcb->code_offset >= MAX_LINES_PER_CODE || !curr_pcb->code[curr_pcb->code_offset]) {

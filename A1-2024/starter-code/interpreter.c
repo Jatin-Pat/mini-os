@@ -32,9 +32,13 @@ void *run_multithreaded_scheduler(void *arg);
 
 char executes_multithreaded = 0;
 char awaits_quit = 0;
-pthread_t main_thread;
+void set_awaits_quit(char val);
+char get_awaits_quit();
+
+pthread_t main_thread = 0;
 pthread_t worker1, worker2;
 pthread_mutex_t print_lock = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t awaits_quit_lock = PTHREAD_MUTEX_INITIALIZER;
 
 // Interpret commands and their arguments
 int interpreter(char* command_args[], int args_size) {
@@ -117,11 +121,11 @@ run SCRIPT.TXT		Executes the file SCRIPT.TXT\n ";
 int quit() {
     // don't actually deinit and quit if this is not the main_thread
     if (executes_multithreaded && !pthread_equal(main_thread, pthread_self())) {
-        awaits_quit = 1;
+        set_awaits_quit(1);
         return 0;
     } else {
-        deinit();
         echo("Bye!");
+        deinit();
         exit(0);
     }
 }
@@ -349,7 +353,9 @@ int exec(char *command_args[], int num_args) {
 
     if (strcmp(command_args[policy_index], "MT") == 0) {
         executes_multithreaded = 1;
-        main_thread = pthread_self();
+        if (!main_thread) {
+            main_thread = pthread_self();
+        }
         policy_index -= 1;
     }
 
@@ -403,9 +409,7 @@ int exec(char *command_args[], int num_args) {
         error_code = pthread_join(worker2, NULL);
         if (error_code) { return badcommand(); }
 
-        usleep(10000);
-
-        if (awaits_quit) {
+        if (get_awaits_quit()) {
             quit();
         }
 
@@ -480,4 +484,19 @@ void *run_multithreaded_scheduler(void *arg) {
     char * policy = (char *) arg;
     run_scheduler(policy);    
     return (void *) NULL;
+}
+
+void set_awaits_quit(char val) {
+    pthread_mutex_lock(&awaits_quit_lock);
+    awaits_quit = val;
+    pthread_mutex_unlock(&awaits_quit_lock);
+}
+
+
+char get_awaits_quit() {
+    pthread_mutex_lock(&awaits_quit_lock);
+    char val = awaits_quit;
+    pthread_mutex_unlock(&awaits_quit_lock);
+    return val;
+
 }
