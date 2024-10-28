@@ -35,3 +35,9 @@ int badcommandDuplicateProgramsInExec() {
     printf("Bad command: Duplicate programs in exec\n");
     return 8;
 }
+
+int exceptionCannotLoadInteractiveScript() {
+    printf("An exception occurred: Cannot load a script into memory when not in batch mode.\n");
+    return 9;
+}
+

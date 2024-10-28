@@ -6,6 +6,7 @@ int badcommandFileDoesNotExist();
 int badcommandTooManyTokens();
 int badcommandTooFewTokens();
 int badcommandDirectoryAlreadyExist();
+int exceptionCannotLoadInteractiveScript();
 int badcommandInvalidPolicy();
 int badcommandDuplicateProgramsInExec();
 
