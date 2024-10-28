@@ -31,7 +31,14 @@ void *run_multithreaded_scheduler(void *arg);
 
 
 char executes_multithreaded = 0;
+char awaits_quit = 0;
+void set_awaits_quit(char val);
+char get_awaits_quit();
+
+pthread_t main_thread = 0;
 pthread_t worker1, worker2;
+pthread_mutex_t print_lock = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t awaits_quit_lock = PTHREAD_MUTEX_INITIALIZER;
 
 // Interpret commands and their arguments
 int interpreter(char* command_args[], int args_size) {
@@ -112,9 +119,15 @@ run SCRIPT.TXT		Executes the file SCRIPT.TXT\n ";
 }
 
 int quit() {
-    deinit();
-    printf("Bye!\n");
-    exit(0);
+    // don't actually deinit and quit if this is not the main_thread
+    if (executes_multithreaded && !pthread_equal(main_thread, pthread_self())) {
+        set_awaits_quit(1);
+        return 0;
+    } else {
+        echo("Bye!");
+        deinit();
+        exit(0);
+    }
 }
 
 /**
@@ -200,6 +213,7 @@ int run(char *script) {
 *   - 0 if success
 */
 int echo(char *arg) {
+    pthread_mutex_lock(&print_lock); 
     if (arg[0] == '\0') {
         return badcommandTooFewTokens();
     } else if (arg[0] == '$') {
@@ -220,6 +234,7 @@ int echo(char *arg) {
     } else {
         printf("%s\n", arg);
     }
+    pthread_mutex_unlock(&print_lock); 
     return 0;
 }
 
@@ -338,6 +353,9 @@ int exec(char *command_args[], int num_args) {
 
     if (strcmp(command_args[policy_index], "MT") == 0) {
         executes_multithreaded = 1;
+        if (!main_thread) {
+            main_thread = pthread_self();
+        }
         policy_index -= 1;
     }
 
@@ -378,7 +396,7 @@ int exec(char *command_args[], int num_args) {
         ready_queue_push(pid);
     }
 
-    if (executes_multithreaded) {
+    if (executes_multithreaded && pthread_equal(main_thread, pthread_self())) {
         error_code = pthread_create(&worker1, NULL, run_multithreaded_scheduler, (void *) policy);        
         if (error_code) { return badcommand(); }
 
@@ -390,6 +408,10 @@ int exec(char *command_args[], int num_args) {
 
         error_code = pthread_join(worker2, NULL);
         if (error_code) { return badcommand(); }
+
+        if (get_awaits_quit()) {
+            quit();
+        }
 
     } else {
         error_code = run_scheduler(policy);
@@ -462,4 +484,19 @@ void *run_multithreaded_scheduler(void *arg) {
     char * policy = (char *) arg;
     run_scheduler(policy);    
     return (void *) NULL;
+}
+
+void set_awaits_quit(char val) {
+    pthread_mutex_lock(&awaits_quit_lock);
+    awaits_quit = val;
+    pthread_mutex_unlock(&awaits_quit_lock);
+}
+
+
+char get_awaits_quit() {
+    pthread_mutex_lock(&awaits_quit_lock);
+    char val = awaits_quit;
+    pthread_mutex_unlock(&awaits_quit_lock);
+    return val;
+
 }
