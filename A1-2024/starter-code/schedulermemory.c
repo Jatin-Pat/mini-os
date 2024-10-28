@@ -1,3 +1,4 @@
+#include <pthread.h>
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -29,6 +30,8 @@ struct ready_queue_struct {
     struct ready_queue_node *tail;
     int size;
 } ready_queue = {NULL, NULL, 0};
+
+pthread_mutex_t ready_queue_lock = PTHREAD_MUTEX_INITIALIZER;
     
 __thread int curr_pid = -1;
 
@@ -192,6 +195,7 @@ int ready_queue_push(int pid) {
     curr_node->pid = pid;
     curr_node->next = NULL;
 
+    pthread_mutex_lock(&ready_queue_lock);
     // if list is empty, make curr node the new head
     if (!ready_queue.head) {
         ready_queue.head = curr_node;
@@ -204,6 +208,7 @@ int ready_queue_push(int pid) {
 
     ready_queue.tail = curr_node;
     ready_queue.size++;
+    pthread_mutex_unlock(&ready_queue_lock);
 
     return 0; 
 }
@@ -221,12 +226,14 @@ int ready_queue_prepend(int pid) {
     curr_node->pid = pid;
     curr_node->next = ready_queue.head;    
 
+    pthread_mutex_lock(&ready_queue_lock);
     // if list is empty, ensure the tail will point to curr node
     if (!ready_queue.head) {
        ready_queue.tail = curr_node; 
     }
     ready_queue.head = curr_node;
     ready_queue.size++;
+    pthread_mutex_unlock(&ready_queue_lock);
     
     return 0;
 }
@@ -239,10 +246,11 @@ int ready_queue_prepend(int pid) {
 *   - 1 when queue was already empty
 */
 int ready_queue_pop(int *ppid) {
-    if (ready_queue.size <= 0) {
+    if (get_ready_queue_size() <= 0) {
         return 1;
     }
     
+    pthread_mutex_lock(&ready_queue_lock);
     struct ready_queue_node *curr_node = ready_queue.head;
     *ppid = curr_node->pid;
     ready_queue.head = curr_node->next;
@@ -252,6 +260,7 @@ int ready_queue_pop(int *ppid) {
     if (ready_queue.size <= 0) {
         ready_queue.tail = NULL;
     }
+    pthread_mutex_unlock(&ready_queue_lock);
     return 0;
 }
 
@@ -263,13 +272,26 @@ int ready_queue_pop(int *ppid) {
 *   - 1 when queue was already empty
 */
 int ready_queue_peek(int *ppid) {
-    if (ready_queue.size <= 0) {
+    if (get_ready_queue_size() <= 0) {
         return 1;
     }   
     
+    pthread_mutex_lock(&ready_queue_lock);
     struct ready_queue_node *curr_node = ready_queue.head;
+    pthread_mutex_unlock(&ready_queue_lock);
+
     *ppid = curr_node->pid; 
     return 0;
+}
+
+/**
+* Gets the size of the ready queue in a thread-safe way.
+*/
+int get_ready_queue_size() {
+    pthread_mutex_lock(&ready_queue_lock);
+    int size = ready_queue.size;
+    pthread_mutex_unlock(&ready_queue_lock);
+    return size;
 }
 
 /**
@@ -327,18 +349,18 @@ int job_length_compare(const void *a, const void *b) {
 * Reorders the ready queue in acsending order of job length score.
 */
 void ready_queue_reorder_sjf() {
-    if (ready_queue.size <= 1) {
+    if (get_ready_queue_size() <= 1) {
         return;
     }
 
-    int jobs_array[ready_queue.size][2];
+    int jobs_array[get_ready_queue_size()][2];
     int curr_pid;
     int curr_index = 0;
 
     // Pop jobs from ready queue and store as pid, job_length_score pair.
     // An array is used to simplify operations with qsort, over directly sorting the ready_queue linked list.
     // We need to store the job pid so that after reordering we know which job the job_length_score belongs to.
-    while (ready_queue.size > 0) {
+    while (get_ready_queue_size() > 0) {
         ready_queue_pop(&curr_pid);
         jobs_array[curr_index][0] = curr_pid;
         jobs_array[curr_index][1] = pcb_array[curr_pid]->job_length_score;
@@ -359,15 +381,15 @@ void ready_queue_reorder_sjf() {
 * @param pid: the pid of the job that just ran.
 */
 void ready_queue_reorder_aging(int pid) {
-    if (ready_queue.size <= 1) {
+    if (get_ready_queue_size() <= 1) {
         return;
     }
 
-    int jobs_array[ready_queue.size][2];
+    int jobs_array[get_ready_queue_size()][2];
     int curr_pid;
     int curr_index = 0;
 
-    while (ready_queue.size > 0) {
+    while (get_ready_queue_size() > 0) {
         ready_queue_pop(&curr_pid);
         
         // Decrement job_length_score for all jobs except the one that just ran .
@@ -400,7 +422,7 @@ int sequential_policy() {
     struct pcb_struct *curr_pcb;
     int error_code = 0;
 
-    while (ready_queue.size > 0) {
+    while (get_ready_queue_size() > 0) {
         error_code = ready_queue_pop(&curr_pid);
         if (error_code) { return error_code; }
 
@@ -433,7 +455,7 @@ int round_robin_policy(int max_timer) {
     int error_code = 0;
     int timer = max_timer;
 
-    while (ready_queue.size > 0) {
+    while (get_ready_queue_size() > 0) {
         if (ready_queue_pop(&curr_pid)) {
             return 1; // error
         }
@@ -445,6 +467,7 @@ int round_robin_policy(int max_timer) {
             curr_pcb->code_offset++;
             timer--;
             error_code = parseInput(line);         
+            usleep(1000);
         }
 
         if (curr_pcb->code_offset >= MAX_LINES_PER_CODE || !curr_pcb->code[curr_pcb->code_offset]) {
@@ -476,7 +499,7 @@ int aging_policy() {
 
     ready_queue_reorder_sjf();
 
-    while (ready_queue.size > 0) {
+    while (get_ready_queue_size() > 0) {
         curr_pid = ready_queue.head->pid;
         curr_pcb = pcb_array[curr_pid];
 
