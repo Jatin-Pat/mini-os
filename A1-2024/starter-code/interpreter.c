@@ -9,6 +9,7 @@
 #include "errors.h"
 #include "schedulermemory.h"
 #include "setup.h"
+#include "codememory.h"
 #include "shellmemory.h"
 #include "shell.h"
 
@@ -447,6 +448,8 @@ int exec(char *command_args[], int num_args) {
         error_code = run_scheduler(policy);
     }
         
+    free_script_memory(curr_pid);
+
     // stop running after queue becomes empty: current process was run.
     if (executes_in_background) {
         deinit();

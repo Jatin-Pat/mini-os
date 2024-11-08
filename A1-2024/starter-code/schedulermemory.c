@@ -6,10 +6,9 @@
 #include <unistd.h>
 
 #include "errors.h"
+#include "codememory.h"
 #include "schedulermemory.h"
 #include "shell.h"
-
-char **process_code_memory[MAX_NUM_PROCESSES];
 
 struct pcb_struct {
     int pid;
@@ -36,31 +35,6 @@ pthread_mutex_t ready_queue_lock = PTHREAD_MUTEX_INITIALIZER;
 __thread int curr_pid = -1;
 
 /**
-* Initializes the process code memory.
-* @return: 
-*   - 0
-*/
-int process_code_mem_init() {
-    for (int i = 0; i < MAX_NUM_PROCESSES; i++) {
-        process_code_memory[i] = (char **) calloc(MAX_LINES_PER_CODE, sizeof(char*));
-    }
-    return 0;
-}
-
-/**
-* Deinitializes the process code memory.
-* @return:
-*   - 0
-*/
-int process_code_mem_deinit() {
-    for (int i = 0; i < MAX_NUM_PROCESSES; i++) {
-        free(process_code_memory[i]);
-        process_code_memory[i] = NULL;
-    }
-    return 0;
-}
-
-/**
 * Finds the first available pid.
 * Places the index of that slot in pointer ppid
 * @return: 
@@ -75,82 +49,6 @@ int find_free_pid(int *ppid) {
         }
     }
     return badcommandOutOfPIDs();
-}
-
-/**
-* Loads the script contained in filename into process memory for a pid.
-*
-* @param filename the name of the file to load
-* @param pid the pid of the process in which to load the file
-*
-* @return:
-*   - 0 when ok
-*   - error code when not ok
-*/
-int load_script_into_memory(char *filename, int pid, int *line_count) {
-    char line[MAX_USER_INPUT];
-    int error_code = 0;
-    int current_line = 0;
-
-    FILE *p = fopen(filename, "rt");
-    if (!p) {
-        return badcommandFileDoesNotExist();
-    }
-
-    // for each line in file, load into memory[free_index]
-    fgets(line, MAX_USER_INPUT, p);
-    while (1) {
-        process_code_memory[pid][current_line] = strdup(line);
-        current_line++;
-
-        memset(line, 0, sizeof(line));
-        if (feof(p)) {
-            break;
-        }
-        if (!fgets(line, MAX_USER_INPUT, p)) {
-            break;
-        }
-    }
-
-    fclose(p);
-
-    *line_count = current_line;
-    return error_code;
-}
-
-/**
-* Loads the rest of the current script into process memory for a pid.
-*
-* Requires the shell to be executing in batch mode.
-* 
-* @param pid the pid in which to load the script.
-*
-* @returns:
-*   - 0 when ok
-*   - error code when not ok
-*/
-int load_current_script_into_memory(int pid) {
-    char line[MAX_USER_INPUT];
-    int error_code = 0;
-    int current_line = 0;
-    
-    while(1) {
-        if (isatty(0)){
-            return exceptionCannotLoadInteractiveScript();
-        } else if (feof(stdin)) {
-            break;
-        }
-
-        if (!fgets(line, MAX_USER_INPUT, stdin)) {
-            break;
-        }
-
-        process_code_memory[pid][current_line] = strdup(line);
-        current_line++;
-        memset(line, 0, sizeof(line));
-    }
-
-    return error_code;
 }
 
 /**
@@ -172,27 +70,6 @@ int create_pcb_for_pid(int pid, int line_count) {
 
     pcb_array[pid] = curr_pcb;
     return 0;
-}
-
-/**
-* Frees the memory allocated for a script at an index.
-*
-* @param index the index of the script to free
-* @return:
-*   - 0
-*/
-int free_script_memory_at_index(int index) {
-    int error_code = 0;
-    char *pline;
-
-    for (int i = 0; i < MAX_LINES_PER_CODE; i++) {
-        pline = process_code_memory[index][i];
-        if (pline) {
-            free(pline);
-            process_code_memory[index][i] = NULL;
-        } 
-    }    
-    return error_code;
 }
 
 /**
@@ -462,7 +339,6 @@ int sequential_policy() {
             error_code = parseInput(line);         
         }
         // Job is done, free up resources
-        free_script_memory_at_index(curr_pid);
         free_pcb_for_pid(curr_pid);
     }
 
@@ -499,7 +375,6 @@ int round_robin_policy(int max_timer) {
         }
 
         if (curr_pcb->code_offset >= MAX_LINES_PER_CODE || !curr_pcb->code[curr_pcb->code_offset]) {
-            free_script_memory_at_index(curr_pid);
             free_pcb_for_pid(curr_pid);
 
         } else {
@@ -539,7 +414,6 @@ int aging_policy() {
 
         if (curr_pcb->code_offset >= MAX_LINES_PER_CODE || !curr_pcb->code[curr_pcb->code_offset]) {
             ready_queue_pop(&curr_pid);
-            free_script_memory_at_index(curr_pid);
             free_pcb_for_pid(curr_pid);
         }
         ready_queue_reorder_aging(curr_pid);
