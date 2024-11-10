@@ -4,11 +4,13 @@
 #include <unistd.h>
 
 #include "shell.h"
+/*
 #include "interpreter.h"
 #include "codememory.h"
 #include "schedulermemory.h"
 #include "setup.h"
 #include "shellmemory.h"
+*/
 
 int parseInput(char ui[]);
 

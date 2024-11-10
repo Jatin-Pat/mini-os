@@ -2,8 +2,8 @@
 #define CODEMEMORY_H
 
 #define MAX_NUM_PROCESSES 5
-#define MAX_LINES_PER_CODE 200
-#define MAX_PAGE_TABLE_ENTRIES 20
+#define MAX_LINES_PER_CODE 30 
+#define MAX_PAGE_TABLE_ENTRIES 10 
 #define PAGE_SIZE 3 
 
 int process_code_mem_init();
