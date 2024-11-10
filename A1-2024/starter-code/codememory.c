@@ -31,9 +31,9 @@ int next_page_load = 0;
 *   - 0
 */
 int process_code_mem_init() {
-    process_code_memory = (char **) calloc(MAX_NUM_PROCESSES * MAX_LINES_PER_CODE, sizeof(char*));
+    process_code_memory = malloc(20 * sizeof(char*));
 
-    int num_frames = MAX_NUM_PROCESSES * MAX_LINES_PER_CODE / 3;
+    int num_frames = floor((MAX_NUM_PROCESSES * MAX_LINES_PER_CODE) / 3);
     free_frames = (char *) malloc(num_frames * sizeof(char));
     memset(free_frames, 1, num_frames * sizeof(char));  // all frames initially free
     return 0;

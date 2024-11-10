@@ -14,6 +14,8 @@ int parseInput(char ui[]);
 
 // Start of everything
 int main(int argc, char *argv[]) {
+    char * mychar = malloc(sizeof(char));
+    printf("hi %s\n", mychar);
     printf("Shell version 1.3 created September 2024\n\n");
 
     char prompt = '$';  				// Shell prompt
