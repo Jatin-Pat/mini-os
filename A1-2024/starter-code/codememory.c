@@ -12,6 +12,12 @@
 
 char **process_code_memory;
 
+struct page_table_s {
+    char *backing_store_fname;
+    int entries[MAX_PAGE_TABLE_ENTRIES];
+}
+
+struct page_table_s *page_table_array[MAX_NUM_PROCESSES] = {NULL};
 
 /**
 * Initializes the process code memory.
@@ -20,7 +26,6 @@ char **process_code_memory;
 */
 int process_code_mem_init() {
     process_code_memory = (char **) calloc(MAX_NUM_PROCESSES * MAX_LINES_PER_CODE, sizeof(char*));
-    }
     return 0;
 }
 
@@ -30,9 +35,8 @@ int process_code_mem_init() {
 *   - 0
 */
 int process_code_mem_deinit() {
-        free(process_code_memory);
-        process_code_memory = NULL;
-    }
+    free(process_code_memory);
+    process_code_memory = NULL;
     return 0;
 }
 
@@ -44,18 +48,35 @@ int process_code_mem_deinit() {
 * @return:
 *   - 0
 */
-int free_script_memory(int index) {
+int free_script_memory() {
     int error_code = 0;
     char *pline;
 
     for (int i = 0; i < MAX_LINES_PER_CODE; i++) {
-        pline = process_code_memory[index][i];
+        pline = process_code_memory[i];
         if (pline) {
             free(pline);
-            process_code_memory[index][i] = NULL;
+            process_code_memory[i] = NULL;
         } 
     }    
     return error_code;
+}
+
+int create_page_table_for_pid(int pid, char *backing_store_fname) {
+    if (page_table_array[pid]) {
+        return 1; //TODO BETTER ERROR: PT array nonvoid
+    }
+    struct page_table_s *curr_pt = malloc(sizeof(struct page_table_s));
+    curr_pt->backing_store_fname = backing_store_fname;
+    memset(curr_pt, NULL, sizeof(curr_pt->entries));
+
+    return 0;
+}
+
+int free_page_table_for_pid(int pid) {
+   free(page_table_array[pid]);
+    page_table_array[pid] = NULL;
+    return 0; 
 }
 
 

@@ -448,7 +448,7 @@ int exec(char *command_args[], int num_args) {
         error_code = run_scheduler(policy);
     }
         
-    free_script_memory(curr_pid);
+    free_script_memory();
 
     // stop running after queue becomes empty: current process was run.
     if (executes_in_background) {
@@ -477,6 +477,9 @@ int create_process_from_filename(char *filename, int *ppid) {
     error_code = find_free_pid(&pid);
     if (error_code) { return error_code; }
 
+    error_code = create_page_table_for_pid(pid, filename);
+    if (error_code) { return error_code; }
+
     error_code = load_script_into_memory(filename, pid, &line_count);
     if (error_code) { return error_code; }
 
@@ -501,6 +504,9 @@ int create_process_from_current_file(int *ppid) {
     int pid;
 
     error_code = find_free_pid(&pid);
+    if (error_code) { return error_code; }
+
+    error_code = create_page_table_for_pid(pid, filename);
     if (error_code) { return error_code; }
 
     error_code = create_pcb_for_pid(pid, 0);

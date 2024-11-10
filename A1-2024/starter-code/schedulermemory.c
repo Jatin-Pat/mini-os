@@ -340,6 +340,7 @@ int sequential_policy() {
         }
         // Job is done, free up resources
         free_pcb_for_pid(curr_pid);
+        free_page_table_for_pid(curr_pid);
     }
 
     return error_code;
@@ -376,6 +377,7 @@ int round_robin_policy(int max_timer) {
 
         if (curr_pcb->code_offset >= MAX_LINES_PER_CODE || !curr_pcb->code[curr_pcb->code_offset]) {
             free_pcb_for_pid(curr_pid);
+            free_page_table_for_pid(curr_pid);
 
         } else {
             ready_queue_push(curr_pid);
@@ -415,6 +417,7 @@ int aging_policy() {
         if (curr_pcb->code_offset >= MAX_LINES_PER_CODE || !curr_pcb->code[curr_pcb->code_offset]) {
             ready_queue_pop(&curr_pid);
             free_pcb_for_pid(curr_pid);
+            free_page_table_for_pid(curr_pid);
         }
         ready_queue_reorder_aging(curr_pid);
     }
