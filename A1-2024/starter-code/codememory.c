@@ -94,20 +94,87 @@ int get_pt_entry_for_line(int pid, int codeline){
     return page_table_array[pid]->entries[pte_index];
 }
 
-int find_free_frame_number(int *pfnum) {
+int count_lines_in_file(FILE *p) {
+     char line[MAX_USER_INPUT];
+    int current_line = 0;
+    
+    while(p) {
+        if (feof(p)) {
+            break;
+        }
+        if (!fgets(line, MAX_USER_INPUT, p)) {
+            break;
+        }
+        current_line++;
+    }
+
+    return current_line;
+
+}
+
+int allocate_frame_to_page() {
     int num_frames = MAX_NUM_PROCESSES * MAX_LINES_PER_CODE / PAGE_SIZE;
+    int pte_index = codeline / PAGE_SIZE;
     for (int i = 0; i < num_frames; i++) {
         if (free_frames[i]) {
-            *pfnum = i;
+            page_table_array[pid]->entries[pte_index] = i;
             return 0;
         }
     }
     // TODO OUT OF MEMORY ERROR 
     return 1;
-    
+}
+
+char *get_backstore_fname_for_pid(int pid) {
+    return page_table_array[pid]->backing_store_fname;
 }
 
 int load_page_at(int pid, int codeline) {
+    int error_code = 0;
+    int memory_addr;
+    char line[MAX_USER_INPUT];
+   
+    // check if invalid entry
+    int offset = codeline % PAGE_SIZE;
+    int frame_number = get_pt_entry_for_line(pid, codeline);
+    if (frame_number = -1) {
+        error_code = allocate_frame_to_page();
+        // TODO OOM
+        if (error_code) { return 1; }
+        frame_number = get_pt_entry_for_line(pid, codeline);
+    }
+
+    char *filename = get_backstore_fname_for_pid;
+    FILE *p = fopen(filename, "rt");
+    if (!p) {
+        return badcommandFileDoesNotExist();
+    }
+
+    // skip until codeline
+    for (int i = 0; i < codeline && fgets(line, MAX_USER_INPUT, p); i++) {
+       if (feof(p)) { break; }
+    }  
+    memset(line, 0, sizeof(line));
+    if (feof(p)) { break; }
+
+    // load code into frame
+    for (int i = 0; i < PAGE_SIZE; i++) {
+        memory_addr = (frame_number * PAGE_SIZE) + i;
+        process_code_memory[memory_addr] = NULL
+        if (fgets(line, MAX_USER_INPUT, p) && !feof(p)) {
+            process_code_memory[memory_addr] = line;
+            memset(line, 0, sizeof(line));
+        }
+    }
+
+    fclose(p);
+
+    next_page_load = (next_page_load + 1) % MAX_PAGE_TABLE_ENTRIES;
+    
+    return 0; 
+}
+
+int get_memory_at(int pid, int codeline, char **line) {
     int error_code = 0;
     int memory_addr;
    
@@ -115,26 +182,15 @@ int load_page_at(int pid, int codeline) {
     int offset = codeline % PAGE_SIZE;
     int frame_number = get_pt_entry_for_line(pid, codeline);
     if (frame_number = -1) {
-        error_code = find_free_frame_number(&frame_number);
-        // TODO OOM
-        if (error_code) { return 1; }
+        //TODO PAGEFAULT!!! (shouldn,t happen in 1.2.1)
+        // handle pagefault
     }
-
-    for (int i = 0; i < PAGE_SIZE; i++) {
-        memory_addr = (frame_number * PAGE_SIZE) + i;
-        process_code_memory[memory_addr] = NULL
-    }
-
     
-        
-    // if no then "save to backing store" (nothing)
-    // if yes just load
-
-    next_page_load = (next_page_load + 1) % MAX_PAGE_TABLE_ENTRIES;
+    memory_addr = (frame_number * PAGE_SIZE) + offset;
+    *line = process_code_memory[memory_addr];
     
     return 0; 
 }
-
 
 // TODO REWORK
 /**
@@ -147,34 +203,16 @@ int load_page_at(int pid, int codeline) {
 *   - 0 when ok
 *   - error code when not ok
 */
-int load_script_into_memory(char *filename, int pid, int *line_count) {
-    char line[MAX_USER_INPUT];
+int load_script_into_memory(int pid, int *line_count) {
     int error_code = 0;
-    int current_line = 0;
-
+    char *filename = get_backstore_fname_for_pid;
     FILE *p = fopen(filename, "rt");
-    if (!p) {
-        return badcommandFileDoesNotExist();
-    }
+    *line_count = count_lines_in_file(p);
+    
+    for (int i = 0; i < line_count; i += 3) {
+        load_page_at(pid, i);
+    } 
 
-    // for each line in file, load into memory[free_index]
-    fgets(line, MAX_USER_INPUT, p);
-    while (1) {
-        process_code_memory[pid][current_line] = strdup(line);
-        current_line++;
-
-        memset(line, 0, sizeof(line));
-        if (feof(p)) {
-            break;
-        }
-        if (!fgets(line, MAX_USER_INPUT, p)) {
-            break;
-        }
-    }
-
-    fclose(p);
-
-    *line_count = current_line;
     return error_code;
 }
 
@@ -193,25 +231,19 @@ int load_script_into_memory(char *filename, int pid, int *line_count) {
 int load_current_script_into_memory(int pid) {
     char line[MAX_USER_INPUT];
     int error_code = 0;
-    int current_line = 0;
-    
-    while(1) {
-        if (isatty(0)){
-            return exceptionCannotLoadInteractiveScript();
-        } else if (feof(stdin)) {
-            break;
-        }
 
-        if (!fgets(line, MAX_USER_INPUT, stdin)) {
-            break;
-        }
-
-        process_code_memory[pid][current_line] = strdup(line);
-        current_line++;
-        memset(line, 0, sizeof(line));
+    if (isatty(0)){
+        return exceptionCannotLoadInteractiveScript();
     }
+
+    *line_count = count_lines_in_file(stdin);
+    
+    for (int i = 0; i < line_count; i += 3) {
+        load_page_at(pid, i);
+    } 
 
     return error_code;
 }
+
 
 
