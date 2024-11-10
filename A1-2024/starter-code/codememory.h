@@ -12,6 +12,6 @@ int free_script_memory();
 int free_page_table_for_pid(int pid);
 int get_memory_at(int pid, int codeline, char **line);
 int create_page_table_for_pid(int pid, char *backing_store_fname);
-int load_script_into_memory(char *filename, int pid, int *line_count);
+int load_script_into_memory(int pid, int *line_count);
 int load_current_script_into_memory(int pid);
 #endif

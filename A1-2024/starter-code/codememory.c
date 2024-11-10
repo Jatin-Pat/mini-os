@@ -163,7 +163,6 @@ int load_page_at(int pid, int codeline) {
     char line[MAX_USER_INPUT];
    
     // check if invalid entry
-    int offset = codeline % PAGE_SIZE;
     int page_num = floor(codeline / PAGE_SIZE); int frame_number = get_pt_entry_for_line(pid, codeline);
     if (frame_number == -1) {
         error_code = allocate_frame_to_page(pid, page_num);
@@ -172,7 +171,7 @@ int load_page_at(int pid, int codeline) {
         frame_number = get_pt_entry_for_line(pid, codeline);
     }
 
-    char *filename = get_backstore_fname_for_pid;
+    char *filename = get_backstore_fname_for_pid(pid);
     FILE *p = fopen(filename, "rt");
     if (!p) {
         return badcommandFileDoesNotExist();
@@ -183,12 +182,11 @@ int load_page_at(int pid, int codeline) {
        if (feof(p)) { break; }
     }  
     memset(line, 0, sizeof(line));
-    if (feof(p)) { break; }
 
     // load code into frame
     for (int i = 0; i < PAGE_SIZE; i++) {
         memory_addr = (frame_number * PAGE_SIZE) + i;
-        process_code_memory[memory_addr] = NULL
+        process_code_memory[memory_addr] = NULL;
         if (fgets(line, MAX_USER_INPUT, p) && !feof(p)) {
             process_code_memory[memory_addr] = line;
             memset(line, 0, sizeof(line));
@@ -209,7 +207,7 @@ int get_memory_at(int pid, int codeline, char **line) {
     // check if invalid entry
     int offset = codeline % PAGE_SIZE;
     int frame_number = get_pt_entry_for_line(pid, codeline);
-    if (frame_number = -1) {
+    if (frame_number == -1) {
         //TODO PAGEFAULT!!! (shouldn,t happen in 1.2.1)
         // handle pagefault
     }
@@ -217,7 +215,7 @@ int get_memory_at(int pid, int codeline, char **line) {
     memory_addr = (frame_number * PAGE_SIZE) + offset;
     *line = process_code_memory[memory_addr];
     
-    return 0; 
+    return error_code; 
 }
 
 // TODO REWORK
@@ -237,7 +235,7 @@ int load_script_into_memory(int pid, int *line_count) {
     FILE *p = fopen(filename, "rt");
     *line_count = count_lines_in_file(p);
     
-    for (int i = 0; i < line_count; i += 3) {
+    for (int i = 0; i < *line_count; i += PAGE_SIZE) {
         load_page_at(pid, i);
     } 
 
@@ -257,14 +255,13 @@ int load_script_into_memory(int pid, int *line_count) {
 *   - error code when not ok
 */
 int load_current_script_into_memory(int pid) {
-    char line[MAX_USER_INPUT];
     int error_code = 0;
 
     if (isatty(0)){
         return exceptionCannotLoadInteractiveScript();
     }
 
-    *line_count = count_lines_in_file(stdin);
+    int line_count = count_lines_in_file(stdin);
     
     for (int i = 0; i < line_count; i += 3) {
         load_page_at(pid, i);
