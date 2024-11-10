@@ -1,3 +1,4 @@
+#include <math.h>
 #include <pthread.h>
 #include <stddef.h>
 #include <stdio.h>
@@ -10,13 +11,15 @@
 #include "schedulermemory.h"
 #include "shell.h"
 
+int allocate_frame_to_page(int pid, int page_num);
+
 char **process_code_memory;
 char *free_frames;
 
 struct page_table_s {
     char *backing_store_fname;
     int entries[MAX_PAGE_TABLE_ENTRIES];
-}
+};
 
 struct page_table_s *page_table_array[MAX_NUM_PROCESSES] = {NULL};
 
@@ -72,20 +75,46 @@ int free_script_memory() {
     return error_code;
 }
 
+int find_page_table_with_fname(int pid, char *fname) {
+    struct page_table_s *pt;
+    for (int i; i < MAX_NUM_PROCESSES; i++) {
+         pt = page_table_array[i];
+        if (pt && strcmp(pt->backing_store_fname, fname) == 0) {
+           return i;         
+        }
+    }
+    return pid;
+}
+
 int create_page_table_for_pid(int pid, char *backing_store_fname) {
     if (page_table_array[pid]) {
         return 1; //TODO BETTER ERROR: PT array nonvoid
     }
-    struct page_table_s *curr_pt = malloc(sizeof(struct page_table_s));
-    curr_pt->backing_store_fname = backing_store_fname;
-    memset(curr_pt, -1, sizeof(curr_pt->entries)); // set all as invalid
+
+    struct page_table_s *curr_pt;
+    int page_table_index = find_page_table_with_fname(pid, backing_store_fname);
+    if (page_table_index == pid) {
+        curr_pt = malloc(sizeof(struct page_table_s));
+        curr_pt->backing_store_fname = backing_store_fname;
+        memset(curr_pt, -1, sizeof(curr_pt->entries)); // set all as invalid
+    } else {
+        curr_pt = page_table_array[page_table_index];
+    }
+
+    page_table_array[pid] = curr_pt;
 
     return 0;
 }
 
 int free_page_table_for_pid(int pid) {
-   free(page_table_array[pid]);
+    struct page_table_s *pt = page_table_array[pid];
     page_table_array[pid] = NULL;
+
+    // if there exists another page table which uses the same file,
+    // don't free that memory, just remove the current pointer to it
+    if (find_page_table_with_fname(pid, pt->backing_store_fname) != pid) {
+        free(pt);
+    }
     return 0; 
 }
 
@@ -112,12 +141,11 @@ int count_lines_in_file(FILE *p) {
 
 }
 
-int allocate_frame_to_page() {
+int allocate_frame_to_page(int pid, int page_num) {
     int num_frames = MAX_NUM_PROCESSES * MAX_LINES_PER_CODE / PAGE_SIZE;
-    int pte_index = codeline / PAGE_SIZE;
     for (int i = 0; i < num_frames; i++) {
         if (free_frames[i]) {
-            page_table_array[pid]->entries[pte_index] = i;
+            page_table_array[pid]->entries[page_num] = i;
             return 0;
         }
     }
@@ -136,9 +164,9 @@ int load_page_at(int pid, int codeline) {
    
     // check if invalid entry
     int offset = codeline % PAGE_SIZE;
-    int frame_number = get_pt_entry_for_line(pid, codeline);
-    if (frame_number = -1) {
-        error_code = allocate_frame_to_page();
+    int page_num = floor(codeline / PAGE_SIZE); int frame_number = get_pt_entry_for_line(pid, codeline);
+    if (frame_number == -1) {
+        error_code = allocate_frame_to_page(pid, page_num);
         // TODO OOM
         if (error_code) { return 1; }
         frame_number = get_pt_entry_for_line(pid, codeline);
@@ -205,7 +233,7 @@ int get_memory_at(int pid, int codeline, char **line) {
 */
 int load_script_into_memory(int pid, int *line_count) {
     int error_code = 0;
-    char *filename = get_backstore_fname_for_pid;
+    char *filename = get_backstore_fname_for_pid(pid);
     FILE *p = fopen(filename, "rt");
     *line_count = count_lines_in_file(p);
     

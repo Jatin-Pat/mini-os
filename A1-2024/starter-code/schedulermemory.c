@@ -12,9 +12,9 @@
 
 struct pcb_struct {
     int pid;
-    char **code;
     int code_offset;
     int job_length_score; // initialized to line_count
+    int page_table_index;
 };
 
 struct pcb_struct *pcb_array[MAX_NUM_PROCESSES] = {NULL};
@@ -64,7 +64,6 @@ int create_pcb_for_pid(int pid, int line_count) {
     } 
     struct pcb_struct *curr_pcb = malloc(sizeof(struct pcb_struct));
     curr_pcb->pid = pid;
-    curr_pcb->code = process_code_memory[pid];
     curr_pcb->code_offset = 0;
     curr_pcb->job_length_score = line_count;
 
@@ -218,7 +217,7 @@ int run_scheduler(char *policy) {
         error_code = sequential_policy();
 
     } else if (strcmp(policy, "SJF") == 0) {
-        ready_queue_reorder_sjf(policy);
+        ready_queue_reorder_sjf();
         error_code = sequential_policy();
 
     } else if (strcmp(policy, "RR") == 0) {
@@ -333,8 +332,7 @@ int sequential_policy() {
 
         curr_pcb = pcb_array[curr_pid];
 
-        while (curr_pcb->code_offset < MAX_LINES_PER_CODE && curr_pcb->code[curr_pcb->code_offset]) {
-            line = curr_pcb->code[curr_pcb->code_offset];
+        while (curr_pcb->code_offset < MAX_LINES_PER_CODE && get_memory_at(curr_pid, curr_pcb->code_offset, &line)) {
             curr_pcb->code_offset++;
             error_code = parseInput(line);         
         }
@@ -367,15 +365,14 @@ int round_robin_policy(int max_timer) {
         curr_pcb = pcb_array[curr_pid];
         timer = max_timer;
 
-        while (curr_pcb->code_offset < MAX_LINES_PER_CODE && curr_pcb->code[curr_pcb->code_offset] && timer > 0) {
-            line = curr_pcb->code[curr_pcb->code_offset];
+        while (curr_pcb->code_offset < MAX_LINES_PER_CODE && get_memory_at(curr_pid, curr_pcb->code_offset, &line) && timer > 0) {
             usleep(1);
             curr_pcb->code_offset++;
             timer--;
             error_code = parseInput(line);         
         }
 
-        if (curr_pcb->code_offset >= MAX_LINES_PER_CODE || !curr_pcb->code[curr_pcb->code_offset]) {
+        if (curr_pcb->code_offset >= MAX_LINES_PER_CODE || !get_memory_at(curr_pid, curr_pcb->code_offset, &line)) {
             free_pcb_for_pid(curr_pid);
             free_page_table_for_pid(curr_pid);
 
@@ -408,13 +405,12 @@ int aging_policy() {
         curr_pid = ready_queue.head->pid;
         curr_pcb = pcb_array[curr_pid];
 
-        if (curr_pcb->code_offset < MAX_LINES_PER_CODE && curr_pcb->code[curr_pcb->code_offset]) {
-            line = curr_pcb->code[curr_pcb->code_offset];
+        if (curr_pcb->code_offset < MAX_LINES_PER_CODE && get_memory_at(curr_pid, curr_pcb->code_offset, &line)) {
             error_code = parseInput(line);
             curr_pcb->code_offset++;
         }
 
-        if (curr_pcb->code_offset >= MAX_LINES_PER_CODE || !curr_pcb->code[curr_pcb->code_offset]) {
+        if (curr_pcb->code_offset >= MAX_LINES_PER_CODE || !get_memory_at(curr_pid, curr_pcb->code_offset, &line)) {
             ready_queue_pop(&curr_pid);
             free_pcb_for_pid(curr_pid);
             free_page_table_for_pid(curr_pid);

@@ -19,7 +19,7 @@ int help();
 int quit();
 int set(char* command_args[], int args_size);
 int print(char* var);
-int run(char* script);
+int run(char* filename);
 int echo(char* arg);
 int my_ls();
 int my_touch(char* filename);
@@ -207,20 +207,12 @@ int print(char *var) {
 *   - 0 if success
 *   - error code when not ok
 */
-int run(char *script) {
+int run(char *filename) {
     int pid;
     int errCode = 0;
-    
-    errCode = find_free_pid(&pid);
-    if (errCode) { return errCode; }
 
-    int line_count;
-    errCode = load_script_into_memory(script, pid, &line_count);
-    if (errCode) { return errCode; }
-
-    errCode = create_pcb_for_pid(pid, line_count);
-    if (errCode) { return errCode; }
-
+    errCode = create_process_from_filename(filename, &pid);
+   
     ready_queue_push(pid);
     char *policy = "FCFS";
 
@@ -504,9 +496,6 @@ int create_process_from_current_file(int *ppid) {
     int pid;
 
     error_code = find_free_pid(&pid);
-    if (error_code) { return error_code; }
-
-    error_code = create_page_table_for_pid(pid, filename);
     if (error_code) { return error_code; }
 
     error_code = create_pcb_for_pid(pid, 0);

@@ -5,6 +5,7 @@
 
 #include "shell.h"
 #include "interpreter.h"
+#include "codememory.h"
 #include "schedulermemory.h"
 #include "setup.h"
 #include "shellmemory.h"
