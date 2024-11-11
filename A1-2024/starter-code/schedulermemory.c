@@ -7,6 +7,7 @@
 
 #include "errors.h"
 #include "schedulermemory.h"
+#include "setup.h"
 #include "shell.h"
 
 char **process_code_memory[MAX_NUM_PROCESSES];
