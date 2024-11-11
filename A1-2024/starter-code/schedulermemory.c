@@ -43,7 +43,7 @@ __thread int curr_pid = -1;
 */
 int process_code_mem_init() {
     for (int i = 0; i < MAX_NUM_PROCESSES; i++) {
-        process_code_memory[i] = (char **) calloc(MAX_LINES_PER_CODE, sizeof(char*));
+        process_code_memory[i] = (char **) calloc(CODE_MEM_SIZE, sizeof(char*));
     }
     return 0;
 }
@@ -186,7 +186,7 @@ int free_script_memory_at_index(int index) {
     int error_code = 0;
     char *pline;
 
-    for (int i = 0; i < MAX_LINES_PER_CODE; i++) {
+    for (int i = 0; i < CODE_MEM_SIZE; i++) {
         pline = process_code_memory[index][i];
         if (pline) {
             free(pline);
@@ -457,7 +457,7 @@ int sequential_policy() {
 
         curr_pcb = pcb_array[curr_pid];
 
-        while (curr_pcb->code_offset < MAX_LINES_PER_CODE && curr_pcb->code[curr_pcb->code_offset]) {
+        while (curr_pcb->code_offset < CODE_MEM_SIZE && curr_pcb->code[curr_pcb->code_offset]) {
             line = curr_pcb->code[curr_pcb->code_offset];
             curr_pcb->code_offset++;
             error_code = parseInput(line);         
@@ -491,7 +491,7 @@ int round_robin_policy(int max_timer) {
         curr_pcb = pcb_array[curr_pid];
         timer = max_timer;
 
-        while (curr_pcb->code_offset < MAX_LINES_PER_CODE && curr_pcb->code[curr_pcb->code_offset] && timer > 0) {
+        while (curr_pcb->code_offset < CODE_MEM_SIZE && curr_pcb->code[curr_pcb->code_offset] && timer > 0) {
             line = curr_pcb->code[curr_pcb->code_offset];
             usleep(1);
             curr_pcb->code_offset++;
@@ -499,7 +499,7 @@ int round_robin_policy(int max_timer) {
             error_code = parseInput(line);         
         }
 
-        if (curr_pcb->code_offset >= MAX_LINES_PER_CODE || !curr_pcb->code[curr_pcb->code_offset]) {
+        if (curr_pcb->code_offset >= CODE_MEM_SIZE || !curr_pcb->code[curr_pcb->code_offset]) {
             free_script_memory_at_index(curr_pid);
             free_pcb_for_pid(curr_pid);
 
@@ -532,13 +532,13 @@ int aging_policy() {
         curr_pid = ready_queue.head->pid;
         curr_pcb = pcb_array[curr_pid];
 
-        if (curr_pcb->code_offset < MAX_LINES_PER_CODE && curr_pcb->code[curr_pcb->code_offset]) {
+        if (curr_pcb->code_offset < CODE_MEM_SIZE && curr_pcb->code[curr_pcb->code_offset]) {
             line = curr_pcb->code[curr_pcb->code_offset];
             error_code = parseInput(line);
             curr_pcb->code_offset++;
         }
 
-        if (curr_pcb->code_offset >= MAX_LINES_PER_CODE || !curr_pcb->code[curr_pcb->code_offset]) {
+        if (curr_pcb->code_offset >= CODE_MEM_SIZE || !curr_pcb->code[curr_pcb->code_offset]) {
             ready_queue_pop(&curr_pid);
             free_script_memory_at_index(curr_pid);
             free_pcb_for_pid(curr_pid);

@@ -7,10 +7,11 @@
 #include <unistd.h>
 
 #include "errors.h"
+#include "resourcemanager.h"
 #include "schedulermemory.h"
 #include "setup.h"
-#include "shellmemory.h"
 #include "shell.h"
+#include "shellmemory.h"
 
 int MAX_ARGS_SIZE = 7;
 

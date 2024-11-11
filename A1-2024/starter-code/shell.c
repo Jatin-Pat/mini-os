@@ -3,17 +3,18 @@
 #include <string.h> 
 #include <unistd.h>
 
-#include "shell.h"
 #include "interpreter.h"
+#include "resourcemanager.h"
 #include "schedulermemory.h"
 #include "setup.h"
+#include "shell.h"
 #include "shellmemory.h"
 
 int parseInput(char ui[]);
 
 // Start of everything
 int main(int argc, char *argv[]) {
-    printf("Shell version 1.3 created September 2024\n\n");
+    printf("Frame Store Size = %d; Variable Store Size = %d\n", CODE_MEM_SIZE, VAR_MEM_SIZE);
 
     char prompt = '$';  				// Shell prompt
     char userInput[MAX_USER_INPUT];		// user's input stored here

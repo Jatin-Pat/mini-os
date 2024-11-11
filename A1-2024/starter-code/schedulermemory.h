@@ -1,9 +1,6 @@
 #ifndef SCHEDULERMEMORY_H
 #define SCHEDULERMEMORY_H
 
-#define MAX_NUM_PROCESSES 5
-#define MAX_LINES_PER_CODE 200
-
 int process_code_mem_init();
 int process_code_mem_deinit();
 int find_free_pid(int *ppid);

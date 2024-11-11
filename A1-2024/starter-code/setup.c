@@ -1,14 +1,13 @@
-#include "shellmemory.h"
-#include "schedulermemory.h"
+#include <math.h>
+
+#include "setup.h"
 
 /**
-* Deinitializes the shell memory.
-*
+* Returns the number of frames in code memory.
+* 
 * @return:
-*   - 0 if success
+*  - the number of frames in code memory
 */
-int deinit() {
-    mem_deinit();
-    process_code_mem_deinit();
-    return 0;
+int num_frames() {
+    return floor(CODE_MEM_SIZE / 3);
 }
