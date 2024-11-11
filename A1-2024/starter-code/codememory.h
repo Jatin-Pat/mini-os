@@ -1,9 +1,11 @@
 #ifndef CODEMEMORY_H
 #define CODEMEMORY_H
 
+#include "setup.h"
+
 typedef struct {
     char *backing_store_fname;
-    int entries[MAX_PAGE_TABLE_ENTRIES];
+    int *entries;
 } page_table_t;
 
 
