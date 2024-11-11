@@ -1,4 +1,0 @@
-exec P_short FCFS #
-echo shell1
-exec P_short FCFS
-echo shell2
