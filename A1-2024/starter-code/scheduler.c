@@ -1,6 +1,62 @@
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+
+#include "errors.h"
+#include "interpreter.h"
 #include "schedulermemory.h"
+#include "setup.h"
 
 #include "scheduler.h"
+
+/**
+* Parses the input into words and interprets them.
+*
+* @param inp the input to parse
+* @return:
+*   - 0 if success
+*   - error code when not ok
+*/
+int parseInput(char inp[]) {
+    char tmp[200];
+    char *words[100];
+    int ix = 0;
+    int w = 0;
+    int wordlen = 0;
+    int errorCode = 0;
+    for (; inp[ix] == ' ' && ix < 1000; ix++); // skip white spaces
+    while (inp[ix] != '\n' && inp[ix] != '\0' && ix < 1000) {
+        // extract a word
+        for (wordlen = 0; !wordEnding(inp[ix]) && ix < 1000; ix++, wordlen++) {
+            tmp[wordlen] = inp[ix];                        
+        }
+        tmp[wordlen] = '\0';
+        words[w] = strdup(tmp);
+        w++;
+        if (inp[ix] == '\0') break;
+        else if (inp[ix] == ';') { // process chained command
+            errorCode = interpreter(words, w) || errorCode; // if chaining and a command fails, keep that error code
+
+            for (int i = 0; i < w; i++) {
+                free(words[i]);
+                words[i] = 0;
+            }
+            w = 0;
+            ix++; // skip over ';' character
+        }
+
+        ix++;
+    }
+
+    // process last command 
+    errorCode = interpreter(words, w) || errorCode;
+
+    for (int i = 0; i < w; i++) {
+        free(words[i]);
+        words[i] = 0;
+    }
+    return errorCode;
+}
 
 /**
 * Runs the scheduler for a policy.
@@ -13,7 +69,7 @@
 int run_scheduler(char *policy) {
     int error_code = 0;
     
-    if (curr_pid != -1) {
+    if (is_process_running()) {
         return error_code;
     }
 
@@ -37,7 +93,7 @@ int run_scheduler(char *policy) {
         return badcommandInvalidPolicy();
     }
 
-    curr_pid = -1;
+    set_process_not_running();
     return error_code;
 }
 
@@ -53,13 +109,17 @@ int run_scheduler(char *policy) {
 int sequential_policy() {
     char *line;
     pcb_t *curr_pcb;
+    int curr_pid = 0;
     int error_code = 0;
 
     while (get_ready_queue_size() > 0) {
         error_code = ready_queue_pop(&curr_pid);
         if (error_code) { return error_code; }
+        set_process_running(curr_pid);
 
-        curr_pcb = pcb_array[curr_pid];
+        if (get_pcb_for_pid(curr_pid, &curr_pcb)) {
+            return 1; // TODO better error: no such pcb
+        }
 
         while (curr_pcb->code_offset < CODE_MEM_SIZE && curr_pcb->code[curr_pcb->code_offset]) {
             line = curr_pcb->code[curr_pcb->code_offset];
@@ -85,6 +145,7 @@ int sequential_policy() {
 int round_robin_policy(int max_timer) {
     char *line;
     pcb_t *curr_pcb;
+    int curr_pid = 0;
     int error_code = 0;
     int timer = max_timer;
 
@@ -92,7 +153,10 @@ int round_robin_policy(int max_timer) {
         if (ready_queue_pop(&curr_pid)) {
             return 1; // error
         }
-        curr_pcb = pcb_array[curr_pid];
+        set_process_running(curr_pid);
+        if (get_pcb_for_pid(curr_pid, &curr_pcb)) {
+            return 1; // TODO better error: no such pcb
+        }
         timer = max_timer;
 
         while (curr_pcb->code_offset < CODE_MEM_SIZE && curr_pcb->code[curr_pcb->code_offset] && timer > 0) {
@@ -128,13 +192,17 @@ int round_robin_policy(int max_timer) {
 int aging_policy() {
     char *line;
     pcb_t *curr_pcb;
+    int curr_pid = 0;
     int error_code = 0;
 
     ready_queue_reorder_sjf();
 
     while (get_ready_queue_size() > 0) {
-        curr_pid = ready_queue.head->pid;
-        curr_pcb = pcb_array[curr_pid];
+        ready_queue_peek(&curr_pid);
+        set_process_running(curr_pid);
+        if (get_pcb_for_pid(curr_pid, &curr_pcb)) {
+            return 1; // TODO better error: no such pcb
+        }
 
         if (curr_pcb->code_offset < CODE_MEM_SIZE && curr_pcb->code[curr_pcb->code_offset]) {
             line = curr_pcb->code[curr_pcb->code_offset];
@@ -152,3 +220,5 @@ int aging_policy() {
 
     return error_code;
 }
+
+

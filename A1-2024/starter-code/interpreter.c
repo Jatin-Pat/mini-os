@@ -7,6 +7,7 @@
 
 #include "errors.h"
 #include "resourcemanager.h"
+#include "scheduler.h"
 #include "schedulermemory.h"
 #include "setup.h"
 #include "shell.h"

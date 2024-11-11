@@ -8,5 +8,6 @@
 #define VAR_MEM_SIZE 10 
 
 int num_frames();
+int wordEnding(char c);
 
 #endif

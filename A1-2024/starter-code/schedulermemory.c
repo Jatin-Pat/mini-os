@@ -18,6 +18,28 @@ ready_queue_t ready_queue = {NULL, NULL, 0};
 int curr_pid = -1;
 
 /**
+* Returns whether a process is currently being run
+*/
+char is_process_running() {
+    // curr_pid is -1 when not running
+    return curr_pid != -1;
+}
+
+/**
+* Indicates that no process is currently run on this thread
+*/
+void set_process_not_running() {
+    curr_pid = -1;
+}
+
+/**
+* Indicates that a process is currently running on this thread
+*/
+void set_process_running(int pid) {
+    curr_pid = pid;
+}
+
+/**
 * Initializes the process code memory.
 * @return: 
 *   - 0
@@ -58,6 +80,19 @@ int find_free_pid(int *ppid) {
     }
     return badcommandOutOfPIDs();
 }
+
+/**
+* Points ppcb to the pcb with pid. 
+* 
+* Returns: 
+*  - 0 on success
+*  - 1 if no process exist with pid.
+*/
+int get_pcb_for_pid(int pid, pcb_t **ppcb) {
+   *ppcb = pcb_array[pid]; 
+    return (ppcb == NULL);
+}
+
 
 /**
 * Loads the script contained in filename into process memory for a pid.

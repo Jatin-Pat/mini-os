@@ -20,6 +20,10 @@ typedef struct {
 } ready_queue_t;
 
 
+char is_process_running();
+void set_process_not_running();
+void set_process_running(int pid);
+int get_pcb_for_pid(int pid, pcb_t **ppcb);
 int process_code_mem_init();
 int process_code_mem_deinit();
 int find_free_pid(int *ppid);
