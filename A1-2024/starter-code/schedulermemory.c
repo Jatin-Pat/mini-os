@@ -1,4 +1,3 @@
-#include <pthread.h>
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -12,29 +11,11 @@
 
 char **process_code_memory[MAX_NUM_PROCESSES];
 
-struct pcb_struct {
-    int pid;
-    char **code;
-    int code_offset;
-    int job_length_score; // initialized to line_count
-};
+pcb_t *pcb_array[MAX_NUM_PROCESSES] = {NULL};
 
-struct pcb_struct *pcb_array[MAX_NUM_PROCESSES] = {NULL};
+ready_queue_t ready_queue = {NULL, NULL, 0};
 
-struct ready_queue_node {
-    int pid;
-    struct ready_queue_node *next;
-};
-
-struct ready_queue_struct {
-    struct ready_queue_node *head;
-    struct ready_queue_node *tail;
-    int size;
-} ready_queue = {NULL, NULL, 0};
-
-pthread_mutex_t ready_queue_lock = PTHREAD_MUTEX_INITIALIZER;
-    
-__thread int curr_pid = -1;
+int curr_pid = -1;
 
 /**
 * Initializes the process code memory.
@@ -165,7 +146,7 @@ int create_pcb_for_pid(int pid, int line_count) {
     if (pcb_array[pid]) {
         return 1;
     } 
-    struct pcb_struct *curr_pcb = malloc(sizeof(struct pcb_struct));
+    pcb_t *curr_pcb = malloc(sizeof(pcb_t));
     curr_pcb->pid = pid;
     curr_pcb->code = process_code_memory[pid];
     curr_pcb->code_offset = 0;
@@ -218,11 +199,10 @@ int free_pcb_for_pid(int pid) {
 *   - 0 when ok 
 */
 int ready_queue_push(int pid) {
-    struct ready_queue_node *curr_node = malloc(sizeof(struct ready_queue_node));
+    ready_queue_node_t *curr_node = malloc(sizeof(ready_queue_node_t));
     curr_node->pid = pid;
     curr_node->next = NULL;
 
-    pthread_mutex_lock(&ready_queue_lock);
     // if list is empty, make curr node the new head
     if (!ready_queue.head) {
         ready_queue.head = curr_node;
@@ -235,7 +215,6 @@ int ready_queue_push(int pid) {
 
     ready_queue.tail = curr_node;
     ready_queue.size++;
-    pthread_mutex_unlock(&ready_queue_lock);
 
     return 0; 
 }
@@ -249,18 +228,16 @@ int ready_queue_push(int pid) {
 *   - 0 when 0k 
 */
 int ready_queue_prepend(int pid) {
-    struct ready_queue_node *curr_node = malloc(sizeof(struct ready_queue_node));
+    ready_queue_node_t *curr_node = malloc(sizeof(ready_queue_node_t));
     curr_node->pid = pid;
     curr_node->next = ready_queue.head;    
 
-    pthread_mutex_lock(&ready_queue_lock);
     // if list is empty, ensure the tail will point to curr node
     if (!ready_queue.head) {
        ready_queue.tail = curr_node; 
     }
     ready_queue.head = curr_node;
     ready_queue.size++;
-    pthread_mutex_unlock(&ready_queue_lock);
     
     return 0;
 }
@@ -277,8 +254,7 @@ int ready_queue_pop(int *ppid) {
         return 1;
     }
     
-    pthread_mutex_lock(&ready_queue_lock);
-    struct ready_queue_node *curr_node = ready_queue.head;
+    ready_queue_node_t *curr_node = ready_queue.head;
     *ppid = curr_node->pid;
     ready_queue.head = curr_node->next;
     free(curr_node);
@@ -287,7 +263,6 @@ int ready_queue_pop(int *ppid) {
     if (ready_queue.size <= 0) {
         ready_queue.tail = NULL;
     }
-    pthread_mutex_unlock(&ready_queue_lock);
     return 0;
 }
 
@@ -303,9 +278,7 @@ int ready_queue_peek(int *ppid) {
         return 1;
     }   
     
-    pthread_mutex_lock(&ready_queue_lock);
-    struct ready_queue_node *curr_node = ready_queue.head;
-    pthread_mutex_unlock(&ready_queue_lock);
+    ready_queue_node_t *curr_node = ready_queue.head;
 
     *ppid = curr_node->pid; 
     return 0;
@@ -317,9 +290,7 @@ int ready_queue_peek(int *ppid) {
 * @returs: the size of the ready queue
 */
 int get_ready_queue_size() {
-    pthread_mutex_lock(&ready_queue_lock);
     int size = ready_queue.size;
-    pthread_mutex_unlock(&ready_queue_lock);
     return size;
 }
 
@@ -448,7 +419,7 @@ void ready_queue_reorder_aging(int pid) {
 */
 int sequential_policy() {
     char *line;
-    struct pcb_struct *curr_pcb;
+    pcb_t *curr_pcb;
     int error_code = 0;
 
     while (get_ready_queue_size() > 0) {
@@ -480,7 +451,7 @@ int sequential_policy() {
 */
 int round_robin_policy(int max_timer) {
     char *line;
-    struct pcb_struct *curr_pcb;
+    pcb_t *curr_pcb;
     int error_code = 0;
     int timer = max_timer;
 
@@ -523,7 +494,7 @@ int round_robin_policy(int max_timer) {
 */
 int aging_policy() {
     char *line;
-    struct pcb_struct *curr_pcb;
+    pcb_t *curr_pcb;
     int error_code = 0;
 
     ready_queue_reorder_sjf();
