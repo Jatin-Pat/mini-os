@@ -1,4 +1,4 @@
-#define MEM_SIZE 1000
+#define MEM_SIZE 10
 void mem_init();
 void mem_deinit();
 char *mem_get_value(char *var);
