@@ -68,6 +68,11 @@ int free_script_memory() {
             code_mem[i] = NULL;
         } 
     }    
+
+    for (int i = 0; i < num_frames(); i++) {
+        free_frames[i] = 1; // free now
+    }
+
     return error_code;
 }
 
@@ -135,6 +140,8 @@ int get_pt_entry_for_line(int pid, int codeline){
 int allocate_frame_to_page(int pid, int page_num) {
     for (int i = 0; i < num_frames(); i++) {
         if (free_frames[i]) {
+            // TODO make available if clearing memory 
+            free_frames[i] = 0; // no longer available
             page_table_array[pid]->entries[page_num] = i;
             return 0;
         }
@@ -179,7 +186,7 @@ int load_page_at(int pid, int codeline) {
         memory_addr = (frame_number * PAGE_SIZE) + i;
         code_mem[memory_addr] = NULL;
         if (fgets(line, MAX_USER_INPUT, p) && !feof(p)) {
-            code_mem[memory_addr] = line;
+            code_mem[memory_addr] = strdup(line);
             memset(line, 0, sizeof(line));
         }
     }

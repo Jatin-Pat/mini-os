@@ -122,7 +122,7 @@ int sequential_policy() {
             return 1; // TODO better error: no such pcb
         }
 
-        while (curr_pcb->code_offset < CODE_MEM_SIZE && get_memory_at(curr_pid, curr_pcb->code_offset, &line)) {
+        while (!get_memory_at(curr_pid, curr_pcb->code_offset, &line)) {
             curr_pcb->code_offset++;
             error_code = parseInput(line);         
         }
@@ -203,16 +203,15 @@ int aging_policy() {
             return 1; // TODO better error: no such pcb
         }
 
-        if (curr_pcb->code_offset < CODE_MEM_SIZE && get_memory_at(curr_pid, curr_pcb->code_offset, &line)) {
+        if (!get_memory_at(curr_pid, curr_pcb->code_offset, &line)) {
             error_code = parseInput(line);
             curr_pcb->code_offset++;
-        }
-
-        if (curr_pcb->code_offset >= CODE_MEM_SIZE || !get_memory_at(curr_pid, curr_pcb->code_offset, &line)) {
+        } else {
             ready_queue_pop(&curr_pid);
             free_pcb_for_pid(curr_pid);
             free_page_table_for_pid(curr_pid);
         }
+
         ready_queue_reorder_aging(curr_pid);
     }
 
