@@ -185,7 +185,7 @@ int load_page_at(int pid, int codeline) {
     for (int i = 0; i < PAGE_SIZE; i++) {
         memory_addr = (frame_number * PAGE_SIZE) + i;
         code_mem[memory_addr] = NULL;
-        if (fgets(line, MAX_USER_INPUT, p) && !feof(p)) {
+        if (fgets(line, MAX_USER_INPUT, p)) {
             code_mem[memory_addr] = strdup(line);
             memset(line, 0, sizeof(line));
         }

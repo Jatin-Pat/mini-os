@@ -122,7 +122,7 @@ int sequential_policy() {
             return 1; // TODO better error: no such pcb
         }
 
-        while (!get_memory_at(curr_pid, curr_pcb->code_offset, &line)) {
+        while (!get_memory_at(curr_pid, curr_pcb->code_offset, &line) && line) {
             curr_pcb->code_offset++;
             error_code = parseInput(line);         
         }
@@ -159,7 +159,7 @@ int round_robin_policy(int max_timer) {
         }
         timer = max_timer;
 
-        while (!get_memory_at(curr_pid, curr_pcb->code_offset, &line) && timer > 0) {
+        while (!get_memory_at(curr_pid, curr_pcb->code_offset, &line) && line && timer > 0) {
             usleep(1);
             curr_pcb->code_offset++;
             timer--;
@@ -203,7 +203,7 @@ int aging_policy() {
             return 1; // TODO better error: no such pcb
         }
 
-        if (!get_memory_at(curr_pid, curr_pcb->code_offset, &line)) {
+        if (!get_memory_at(curr_pid, curr_pcb->code_offset, &line) && line) {
             error_code = parseInput(line);
             curr_pcb->code_offset++;
         } else {
