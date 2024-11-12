@@ -91,8 +91,10 @@ int create_page_table_for_pid(int pid, char *backing_store_fname) {
     int page_table_index = find_page_table_with_fname(pid, backing_store_fname);
     if (page_table_index == pid) {
         curr_pt = malloc(sizeof(page_table_t));
-        curr_pt->backing_store_fname = backing_store_fname;
-        memset(curr_pt, -1, sizeof(curr_pt->entries)); // set all as invalid
+        curr_pt->backing_store_fname = strdup(backing_store_fname);
+        size_t size_entries = num_frames() * sizeof(int);
+        curr_pt->entries = malloc(size_entries);
+        memset(curr_pt->entries, -1, size_entries); // set all as invalid
     } else {
         curr_pt = page_table_array[page_table_index];
     }
@@ -109,13 +111,24 @@ int free_page_table_for_pid(int pid) {
     // if there exists another page table which uses the same file,
     // don't free that memory, just remove the current pointer to it
     if (find_page_table_with_fname(pid, pt->backing_store_fname) != pid) {
+        free(pt->backing_store_fname);
+        pt->backing_store_fname = NULL;
+        free(pt->entries);
+        pt->entries = NULL;
         free(pt);
     }
     return 0; 
 }
 
 int get_pt_entry_for_line(int pid, int codeline){
+    if (!page_table_array[pid]) { // no PT for pid
+        return -1;
+    }
+
     int pte_index = floor(codeline / PAGE_SIZE);
+    if (pte_index >= num_frames()) {
+        return -1;
+    }
     return page_table_array[pid]->entries[pte_index];
 }
 
@@ -188,6 +201,8 @@ int get_memory_at(int pid, int codeline, char **line) {
     if (frame_number == -1) {
         //TODO PAGEFAULT!!! (shouldn,t happen in 1.2.1)
         // handle pagefault
+        *line = NULL;
+        return 1;
     }
     
     memory_addr = (frame_number * PAGE_SIZE) + offset;

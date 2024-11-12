@@ -26,7 +26,7 @@ int main(int argc, char *argv[]) {
     }
     
     // init scheduler memory
-    errorCode = process_code_mem_init();
+    errorCode = code_mem_init();
     if (errorCode) {
         printf("ERROR when initializing process code memory. Exiting.");
         exit(99);

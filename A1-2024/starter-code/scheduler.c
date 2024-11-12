@@ -122,14 +122,13 @@ int sequential_policy() {
             return 1; // TODO better error: no such pcb
         }
 
-        while (curr_pcb->code_offset < CODE_MEM_SIZE && get_memory_at(curr_pid, curr_pcb->code_offset &line)) {
-            line = curr_pcb->code[curr_pcb->code_offset];
+        while (curr_pcb->code_offset < CODE_MEM_SIZE && get_memory_at(curr_pid, curr_pcb->code_offset, &line)) {
             curr_pcb->code_offset++;
             error_code = parseInput(line);         
         }
         // Job is done, free up resources
-        free_script_memory();
         free_pcb_for_pid(curr_pid);
+        free_page_table_for_pid(curr_pid);
     }
 
     return error_code;
@@ -160,17 +159,16 @@ int round_robin_policy(int max_timer) {
         }
         timer = max_timer;
 
-        while (curr_pcb->code_offset < CODE_MEM_SIZE && curr_pcb->code[curr_pcb->code_offset] && timer > 0) {
-            line = curr_pcb->code[curr_pcb->code_offset];
+        while (!get_memory_at(curr_pid, curr_pcb->code_offset, &line) && timer > 0) {
             usleep(1);
             curr_pcb->code_offset++;
             timer--;
             error_code = parseInput(line);         
         }
 
-        if (curr_pcb->code_offset >= CODE_MEM_SIZE || !curr_pcb->code[curr_pcb->code_offset]) {
-            free_script_memory_at_index(curr_pid);
+        if (timer > 0) {
             free_pcb_for_pid(curr_pid);
+            free_page_table_for_pid(curr_pid);
 
         } else {
             ready_queue_push(curr_pid);
@@ -205,16 +203,15 @@ int aging_policy() {
             return 1; // TODO better error: no such pcb
         }
 
-        if (curr_pcb->code_offset < CODE_MEM_SIZE && curr_pcb->code[curr_pcb->code_offset]) {
-            line = curr_pcb->code[curr_pcb->code_offset];
+        if (curr_pcb->code_offset < CODE_MEM_SIZE && get_memory_at(curr_pid, curr_pcb->code_offset, &line)) {
             error_code = parseInput(line);
             curr_pcb->code_offset++;
         }
 
-        if (curr_pcb->code_offset >= CODE_MEM_SIZE || !curr_pcb->code[curr_pcb->code_offset]) {
+        if (curr_pcb->code_offset >= CODE_MEM_SIZE || !get_memory_at(curr_pid, curr_pcb->code_offset, &line)) {
             ready_queue_pop(&curr_pid);
-            free_script_memory_at_index(curr_pid);
             free_pcb_for_pid(curr_pid);
+            free_page_table_for_pid(curr_pid);
         }
         ready_queue_reorder_aging(curr_pid);
     }

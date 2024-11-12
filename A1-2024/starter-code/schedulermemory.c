@@ -40,31 +40,6 @@ void set_process_running(int pid) {
 }
 
 /**
-* Initializes the process code memory.
-* @return: 
-*   - 0
-*/
-int process_code_mem_init() {
-    for (int i = 0; i < MAX_NUM_PROCESSES; i++) {
-        process_code_memory[i] = (char **) calloc(CODE_MEM_SIZE, sizeof(char*));
-    }
-    return 0;
-}
-
-/**
-* Deinitializes the process code memory.
-* @return:
-*   - 0
-*/
-int process_code_mem_deinit() {
-    for (int i = 0; i < MAX_NUM_PROCESSES; i++) {
-        free(process_code_memory[i]);
-        process_code_memory[i] = NULL;
-    }
-    return 0;
-}
-
-/**
 * Finds the first available pid.
 * Places the index of that slot in pointer ppid
 * @return: 
@@ -112,27 +87,6 @@ int create_pcb_for_pid(int pid, int line_count) {
 
     pcb_array[pid] = curr_pcb;
     return 0;
-}
-
-/**
-* Frees the memory allocated for a script at an index.
-*
-* @param index the index of the script to free
-* @return:
-*   - 0
-*/
-int free_script_memory_at_index(int index) {
-    int error_code = 0;
-    char *pline;
-
-    for (int i = 0; i < CODE_MEM_SIZE; i++) {
-        pline = process_code_memory[index][i];
-        if (pline) {
-            free(pline);
-            process_code_memory[index][i] = NULL;
-        } 
-    }    
-    return error_code;
 }
 
 /**

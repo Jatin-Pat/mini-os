@@ -447,6 +447,9 @@ int create_process_from_filename(char *filename, int *ppid) {
     error_code = find_free_pid(&pid);
     if (error_code) { return error_code; }
 
+    error_code = create_page_table_for_pid(pid, filename);
+    if (error_code) { return error_code; }
+
     error_code = load_script_into_memory(pid, &line_count);
     if (error_code) { return error_code; }
 
