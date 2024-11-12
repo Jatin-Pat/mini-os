@@ -3,6 +3,7 @@
 #include <string.h> 
 #include <unistd.h>
 
+#include "codememory.h"
 #include "interpreter.h"
 #include "resourcemanager.h"
 #include "scheduler.h"

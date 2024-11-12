@@ -5,6 +5,7 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
+#include "codememory.h"
 #include "errors.h"
 #include "resourcemanager.h"
 #include "scheduler.h"
@@ -210,7 +211,7 @@ int run(char *script) {
     if (errCode) { return errCode; }
 
     int line_count;
-    errCode = load_script_into_memory(script, pid, &line_count);
+    errCode = load_script_into_memory(pid, &line_count);
     if (errCode) { return errCode; }
 
     errCode = create_pcb_for_pid(pid, line_count);
@@ -446,7 +447,7 @@ int create_process_from_filename(char *filename, int *ppid) {
     error_code = find_free_pid(&pid);
     if (error_code) { return error_code; }
 
-    error_code = load_script_into_memory(filename, pid, &line_count);
+    error_code = load_script_into_memory(pid, &line_count);
     if (error_code) { return error_code; }
 
     error_code = create_pcb_for_pid(pid, line_count);

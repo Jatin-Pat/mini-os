@@ -2,6 +2,7 @@
 #include <string.h>
 #include <unistd.h>
 
+#include "codememory.h"
 #include "errors.h"
 #include "interpreter.h"
 #include "schedulermemory.h"
@@ -121,13 +122,13 @@ int sequential_policy() {
             return 1; // TODO better error: no such pcb
         }
 
-        while (curr_pcb->code_offset < CODE_MEM_SIZE && curr_pcb->code[curr_pcb->code_offset]) {
+        while (curr_pcb->code_offset < CODE_MEM_SIZE && get_memory_at(curr_pid, curr_pcb->code_offset &line)) {
             line = curr_pcb->code[curr_pcb->code_offset];
             curr_pcb->code_offset++;
             error_code = parseInput(line);         
         }
         // Job is done, free up resources
-        free_script_memory_at_index(curr_pid);
+        free_script_memory();
         free_pcb_for_pid(curr_pid);
     }
 

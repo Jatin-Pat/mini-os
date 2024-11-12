@@ -1,5 +1,8 @@
+#include "codememory.h"
 #include "shellmemory.h"
 #include "schedulermemory.h"
+
+#include "resourcemanager.h"
 
 /**
 * Deinitializes the shell memory.
