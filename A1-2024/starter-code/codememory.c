@@ -28,7 +28,8 @@ page_table_t *page_table_array[MAX_NUM_PROCESSES] = {NULL};
 *   - 0
 */
 int code_mem_init() {
-    code_mem = malloc(20 * sizeof(char*));
+    code_mem = malloc(CODE_MEM_SIZE * sizeof(char*));
+    memset(code_mem, 0, CODE_MEM_SIZE * sizeof(char*));
 
     free_frames = (char *) malloc(num_frames() * sizeof(char));
     memset(free_frames, 1, num_frames() * sizeof(char));  // all frames initially free
@@ -78,7 +79,7 @@ int free_script_memory() {
 
 int find_page_table_with_fname(int pid, char *fname) {
     page_table_t *pt;
-    for (int i; i < MAX_NUM_PROCESSES; i++) {
+    for (int i = 0; i < MAX_NUM_PROCESSES; i++) {
          pt = page_table_array[i];
         if (pt && strcmp(pt->backing_store_fname, fname) == 0) {
            return i;         
@@ -115,7 +116,8 @@ int free_page_table_for_pid(int pid) {
 
     // if there exists another page table which uses the same file,
     // don't free that memory, just remove the current pointer to it
-    if (find_page_table_with_fname(pid, pt->backing_store_fname) != pid) {
+    // == pid iff it's the only page table for that fname
+    if (find_page_table_with_fname(pid, pt->backing_store_fname) == pid) {
         free(pt->backing_store_fname);
         pt->backing_store_fname = NULL;
         free(pt->entries);

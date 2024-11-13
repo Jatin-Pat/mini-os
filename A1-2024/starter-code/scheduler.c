@@ -95,6 +95,7 @@ int run_scheduler(char *policy) {
     }
 
     set_process_not_running();
+    free_script_memory();
     return error_code;
 }
 
