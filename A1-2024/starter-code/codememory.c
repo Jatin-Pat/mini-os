@@ -80,7 +80,7 @@ int free_script_memory() {
 int find_page_table_with_fname(int pid, char *fname) {
     page_table_t *pt;
     for (int i = 0; i < MAX_NUM_PROCESSES; i++) {
-         pt = page_table_array[i];
+        pt = page_table_array[i];
         if (pt && strcmp(pt->backing_store_fname, fname) == 0 && i != pid) {
            return i;         
         }
@@ -193,9 +193,23 @@ int load_page_at(int pid, int codeline) {
         }
     }
 
+    for (int i = 0; i < num_frames(); i++) {
+        printf("free frame %d: %d\n", i, free_frames[i]);
+    }
+
+    for (int i = 0; i < CODE_MEM_SIZE; i++) {
+        printf("code_mem[%d]: %s\n", i, code_mem[i] ? code_mem[i] : "NULL");
+    }
+
+    for (int i = 0; i < MAX_NUM_PROCESSES; i++) {
+        printf("page_table_array[%d]: %p\n", i, page_table_array[i]);
+    }
+
+
     fclose(p);
 
     next_page_load = (next_page_load + 1) % num_frames();
+    printf("next_page_load: %d\n", next_page_load);
     
     return 0; 
 }
@@ -211,7 +225,7 @@ int get_memory_at(int pid, int codeline, char **line) {
         //TODO PAGEFAULT!!! (shouldn,t happen in 1.2.1)
         // handle pagefault
         *line = NULL;
-        return 1;
+        return 1; // page fault
     }
     
     memory_addr = (frame_number * PAGE_SIZE) + offset;
@@ -224,8 +238,8 @@ int get_memory_at(int pid, int codeline, char **line) {
 /**
 * Loads the script contained in filename into process memory for a pid.
 *
-* @param filename the name of the file to load
 * @param pid the pid of the process in which to load the file
+* @param line_count a pointer to the number of lines in the file
 *
 * @return:
 *   - 0 when ok
@@ -238,6 +252,7 @@ int load_script_into_memory(int pid, int *line_count) {
     *line_count = count_lines_in_file(p);
     fclose(p);
     
+    // for (int i = 0; i < (*line_count < 2 * PAGE_SIZE ? *line_count : 2 * PAGE_SIZE); i += PAGE_SIZE) {
     for (int i = 0; i < *line_count; i += PAGE_SIZE) {
         load_page_at(pid, i);
     } 

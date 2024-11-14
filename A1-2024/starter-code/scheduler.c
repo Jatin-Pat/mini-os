@@ -160,13 +160,23 @@ int round_robin_policy(int max_timer) {
         }
         timer = max_timer;
 
+        while(timer > 0) {
+            if (!get_memory_at(curr_pid, curr_pcb->code_offset, &line) && line) {
+                error_code = parseInput(line);
+                curr_pcb->code_offset++;
+                timer--;
+            } else {
+                break;
+            }
+        }
+        /*
         while (!get_memory_at(curr_pid, curr_pcb->code_offset, &line) && line && timer > 0) {
             usleep(1);
             curr_pcb->code_offset++;
             timer--;
             error_code = parseInput(line);         
         }
-
+        */
         if (timer > 0) {
             free_pcb_for_pid(curr_pid);
             free_page_table_for_pid(curr_pid);

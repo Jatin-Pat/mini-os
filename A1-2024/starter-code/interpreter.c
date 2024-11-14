@@ -205,24 +205,17 @@ int print(char *var) {
 */
 int run(char *script) {
     int pid;
-    int errCode = 0;
-    
-    errCode = find_free_pid(&pid);
-    if (errCode) { return errCode; }
+    int error_code = 0;
 
-    int line_count;
-    errCode = load_script_into_memory(pid, &line_count);
-    if (errCode) { return errCode; }
-
-    errCode = create_pcb_for_pid(pid, line_count);
-    if (errCode) { return errCode; }
+    error_code = create_process_from_filename(script, &pid);
+    if (error_code) { return error_code; }
 
     ready_queue_push(pid);
     char *policy = "FCFS";
 
-    errCode = run_scheduler(policy);
+    error_code = run_scheduler(policy);
 
-    return errCode;
+    return error_code;
 }
 
 /**
@@ -394,15 +387,6 @@ int exec(char *command_args[], int num_args) {
         strcmp(policy, "RR30") != 0 &&
         strcmp(policy, "AGING") != 0) {
         return badcommandInvalidPolicy();
-    }
-
-    // throw an error if two scripts have the same name
-    for (int i = 1; i < policy_index; i++) {
-        for (int j = i + 1; j < policy_index; j++) {
-            if (strcmp(command_args[i], command_args[j]) == 0) {
-                return badcommandDuplicateProgramsInExec();
-            }
-        }
     }
 
     int pid;
