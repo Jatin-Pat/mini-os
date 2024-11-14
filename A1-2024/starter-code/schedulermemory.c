@@ -1,4 +1,3 @@
-#include <pthread.h>
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -7,57 +6,37 @@
 
 #include "errors.h"
 #include "schedulermemory.h"
+#include "setup.h"
 #include "shell.h"
 
 char **process_code_memory[MAX_NUM_PROCESSES];
 
-struct pcb_struct {
-    int pid;
-    char **code;
-    int code_offset;
-    int job_length_score; // initialized to line_count
-};
+pcb_t *pcb_array[MAX_NUM_PROCESSES] = {NULL};
 
-struct pcb_struct *pcb_array[MAX_NUM_PROCESSES] = {NULL};
+ready_queue_t ready_queue = {NULL, NULL, 0};
 
-struct ready_queue_node {
-    int pid;
-    struct ready_queue_node *next;
-};
-
-struct ready_queue_struct {
-    struct ready_queue_node *head;
-    struct ready_queue_node *tail;
-    int size;
-} ready_queue = {NULL, NULL, 0};
-
-pthread_mutex_t ready_queue_lock = PTHREAD_MUTEX_INITIALIZER;
-    
-__thread int curr_pid = -1;
+int curr_pid = -1;
 
 /**
-* Initializes the process code memory.
-* @return: 
-*   - 0
+* Returns whether a process is currently being run
 */
-int process_code_mem_init() {
-    for (int i = 0; i < MAX_NUM_PROCESSES; i++) {
-        process_code_memory[i] = (char **) calloc(MAX_LINES_PER_CODE, sizeof(char*));
-    }
-    return 0;
+char is_process_running() {
+    // curr_pid is -1 when not running
+    return curr_pid != -1;
 }
 
 /**
-* Deinitializes the process code memory.
-* @return:
-*   - 0
+* Indicates that no process is currently run on this thread
 */
-int process_code_mem_deinit() {
-    for (int i = 0; i < MAX_NUM_PROCESSES; i++) {
-        free(process_code_memory[i]);
-        process_code_memory[i] = NULL;
-    }
-    return 0;
+void set_process_not_running() {
+    curr_pid = -1;
+}
+
+/**
+* Indicates that a process is currently running on this thread
+*/
+void set_process_running(int pid) {
+    curr_pid = pid;
 }
 
 /**
@@ -78,79 +57,15 @@ int find_free_pid(int *ppid) {
 }
 
 /**
-* Loads the script contained in filename into process memory for a pid.
-*
-* @param filename the name of the file to load
-* @param pid the pid of the process in which to load the file
-*
-* @return:
-*   - 0 when ok
-*   - error code when not ok
-*/
-int load_script_into_memory(char *filename, int pid, int *line_count) {
-    char line[MAX_USER_INPUT];
-    int error_code = 0;
-    int current_line = 0;
-
-    FILE *p = fopen(filename, "rt");
-    if (!p) {
-        return badcommandFileDoesNotExist();
-    }
-
-    // for each line in file, load into memory[free_index]
-    fgets(line, MAX_USER_INPUT, p);
-    while (1) {
-        process_code_memory[pid][current_line] = strdup(line);
-        current_line++;
-
-        memset(line, 0, sizeof(line));
-        if (feof(p)) {
-            break;
-        }
-        if (!fgets(line, MAX_USER_INPUT, p)) {
-            break;
-        }
-    }
-
-    fclose(p);
-
-    *line_count = current_line;
-    return error_code;
-}
-
-/**
-* Loads the rest of the current script into process memory for a pid.
-*
-* Requires the shell to be executing in batch mode.
+* Points ppcb to the pcb with pid. 
 * 
-* @param pid the pid in which to load the script.
-*
-* @returns:
-*   - 0 when ok
-*   - error code when not ok
+* Returns: 
+*  - 0 on success
+*  - 1 if no process exist with pid.
 */
-int load_current_script_into_memory(int pid) {
-    char line[MAX_USER_INPUT];
-    int error_code = 0;
-    int current_line = 0;
-    
-    while(1) {
-        if (isatty(0)){
-            return exceptionCannotLoadInteractiveScript();
-        } else if (feof(stdin)) {
-            break;
-        }
-
-        if (!fgets(line, MAX_USER_INPUT, stdin)) {
-            break;
-        }
-
-        process_code_memory[pid][current_line] = strdup(line);
-        current_line++;
-        memset(line, 0, sizeof(line));
-    }
-
-    return error_code;
+int get_pcb_for_pid(int pid, pcb_t **ppcb) {
+   *ppcb = pcb_array[pid]; 
+    return (ppcb == NULL);
 }
 
 /**
@@ -164,7 +79,7 @@ int create_pcb_for_pid(int pid, int line_count) {
     if (pcb_array[pid]) {
         return 1;
     } 
-    struct pcb_struct *curr_pcb = malloc(sizeof(struct pcb_struct));
+    pcb_t *curr_pcb = malloc(sizeof(pcb_t));
     curr_pcb->pid = pid;
     curr_pcb->code = process_code_memory[pid];
     curr_pcb->code_offset = 0;
@@ -172,27 +87,6 @@ int create_pcb_for_pid(int pid, int line_count) {
 
     pcb_array[pid] = curr_pcb;
     return 0;
-}
-
-/**
-* Frees the memory allocated for a script at an index.
-*
-* @param index the index of the script to free
-* @return:
-*   - 0
-*/
-int free_script_memory_at_index(int index) {
-    int error_code = 0;
-    char *pline;
-
-    for (int i = 0; i < MAX_LINES_PER_CODE; i++) {
-        pline = process_code_memory[index][i];
-        if (pline) {
-            free(pline);
-            process_code_memory[index][i] = NULL;
-        } 
-    }    
-    return error_code;
 }
 
 /**
@@ -217,11 +111,10 @@ int free_pcb_for_pid(int pid) {
 *   - 0 when ok 
 */
 int ready_queue_push(int pid) {
-    struct ready_queue_node *curr_node = malloc(sizeof(struct ready_queue_node));
+    ready_queue_node_t *curr_node = malloc(sizeof(ready_queue_node_t));
     curr_node->pid = pid;
     curr_node->next = NULL;
 
-    pthread_mutex_lock(&ready_queue_lock);
     // if list is empty, make curr node the new head
     if (!ready_queue.head) {
         ready_queue.head = curr_node;
@@ -234,7 +127,6 @@ int ready_queue_push(int pid) {
 
     ready_queue.tail = curr_node;
     ready_queue.size++;
-    pthread_mutex_unlock(&ready_queue_lock);
 
     return 0; 
 }
@@ -248,18 +140,16 @@ int ready_queue_push(int pid) {
 *   - 0 when 0k 
 */
 int ready_queue_prepend(int pid) {
-    struct ready_queue_node *curr_node = malloc(sizeof(struct ready_queue_node));
+    ready_queue_node_t *curr_node = malloc(sizeof(ready_queue_node_t));
     curr_node->pid = pid;
     curr_node->next = ready_queue.head;    
 
-    pthread_mutex_lock(&ready_queue_lock);
     // if list is empty, ensure the tail will point to curr node
     if (!ready_queue.head) {
        ready_queue.tail = curr_node; 
     }
     ready_queue.head = curr_node;
     ready_queue.size++;
-    pthread_mutex_unlock(&ready_queue_lock);
     
     return 0;
 }
@@ -276,8 +166,7 @@ int ready_queue_pop(int *ppid) {
         return 1;
     }
     
-    pthread_mutex_lock(&ready_queue_lock);
-    struct ready_queue_node *curr_node = ready_queue.head;
+    ready_queue_node_t *curr_node = ready_queue.head;
     *ppid = curr_node->pid;
     ready_queue.head = curr_node->next;
     free(curr_node);
@@ -286,7 +175,6 @@ int ready_queue_pop(int *ppid) {
     if (ready_queue.size <= 0) {
         ready_queue.tail = NULL;
     }
-    pthread_mutex_unlock(&ready_queue_lock);
     return 0;
 }
 
@@ -302,9 +190,7 @@ int ready_queue_peek(int *ppid) {
         return 1;
     }   
     
-    pthread_mutex_lock(&ready_queue_lock);
-    struct ready_queue_node *curr_node = ready_queue.head;
-    pthread_mutex_unlock(&ready_queue_lock);
+    ready_queue_node_t *curr_node = ready_queue.head;
 
     *ppid = curr_node->pid; 
     return 0;
@@ -316,49 +202,8 @@ int ready_queue_peek(int *ppid) {
 * @returs: the size of the ready queue
 */
 int get_ready_queue_size() {
-    pthread_mutex_lock(&ready_queue_lock);
     int size = ready_queue.size;
-    pthread_mutex_unlock(&ready_queue_lock);
     return size;
-}
-
-/**
-* Runs the scheduler for a policy.
-* 
-* @param policy: the policy to run
-* @return:
-*   - 0 when ok
-*   - error code when not ok
-*/
-int run_scheduler(char *policy) {
-    int error_code = 0;
-    
-    if (curr_pid != -1) {
-        return error_code;
-    }
-
-    if (strcmp(policy, "FCFS") == 0) {
-        error_code = sequential_policy();
-
-    } else if (strcmp(policy, "SJF") == 0) {
-        ready_queue_reorder_sjf(policy);
-        error_code = sequential_policy();
-
-    } else if (strcmp(policy, "RR") == 0) {
-        error_code = round_robin_policy(2);
-
-    } else if (strcmp(policy, "RR30") == 0) {
-        error_code = round_robin_policy(30);
-    
-    } else if (strcmp(policy, "AGING") == 0) {
-        error_code = aging_policy();
-
-    } else {
-        return badcommandInvalidPolicy();
-    }
-
-    curr_pid = -1;
-    return error_code;
 }
 
 /**
@@ -436,114 +281,4 @@ void ready_queue_reorder_aging(int pid) {
     }
 }
 
-/**
-* Sequentially runs each job until completion in the order they were loaded in the ready queue.
-*
-* If policy is FCFS, the ready queue is already in the correct order.
-* If policy is SJF, ready_queue_reorder_sjf() must be called prior to reorder the ready queue in ascending order of job length score.
-* @return: 
-*   - 0 if success
-*   - 1 if error
-*/
-int sequential_policy() {
-    char *line;
-    struct pcb_struct *curr_pcb;
-    int error_code = 0;
 
-    while (get_ready_queue_size() > 0) {
-        error_code = ready_queue_pop(&curr_pid);
-        if (error_code) { return error_code; }
-
-        curr_pcb = pcb_array[curr_pid];
-
-        while (curr_pcb->code_offset < MAX_LINES_PER_CODE && curr_pcb->code[curr_pcb->code_offset]) {
-            line = curr_pcb->code[curr_pcb->code_offset];
-            curr_pcb->code_offset++;
-            error_code = parseInput(line);         
-        }
-        // Job is done, free up resources
-        free_script_memory_at_index(curr_pid);
-        free_pcb_for_pid(curr_pid);
-    }
-
-    return error_code;
-}
-
-/**
-* Runs each job for a time slice of 2 instructions.
-*
-* If a job is not completed in the time slice, it is pushed back in the back of the ready queue.
-* @return:
-*   - 0 if success
-*   - 1 if error
-*/
-int round_robin_policy(int max_timer) {
-    char *line;
-    struct pcb_struct *curr_pcb;
-    int error_code = 0;
-    int timer = max_timer;
-
-    while (get_ready_queue_size() > 0) {
-        if (ready_queue_pop(&curr_pid)) {
-            return 1; // error
-        }
-        curr_pcb = pcb_array[curr_pid];
-        timer = max_timer;
-
-        while (curr_pcb->code_offset < MAX_LINES_PER_CODE && curr_pcb->code[curr_pcb->code_offset] && timer > 0) {
-            line = curr_pcb->code[curr_pcb->code_offset];
-            usleep(1);
-            curr_pcb->code_offset++;
-            timer--;
-            error_code = parseInput(line);         
-        }
-
-        if (curr_pcb->code_offset >= MAX_LINES_PER_CODE || !curr_pcb->code[curr_pcb->code_offset]) {
-            free_script_memory_at_index(curr_pid);
-            free_pcb_for_pid(curr_pid);
-
-        } else {
-            ready_queue_push(curr_pid);
-        }
-    }
-
-    return error_code;
-}
-
-/**
-* Runs the head job in the ready queue for a time slice of 1 instruction, aging all other jobs each iteration.
-*
-* If job with lower job length score is present after ready_queue_reorder_aging(), current process is preempted, 
-* and lowest job length score placed at the head for next iteration.
-* Jobs are only poped if completed; allowing current job to continue if it has the lowest score after ready_queue_reorder_aging().
-* @return:
-*   - 0 if success
-*   - 1 if error
-*/
-int aging_policy() {
-    char *line;
-    struct pcb_struct *curr_pcb;
-    int error_code = 0;
-
-    ready_queue_reorder_sjf();
-
-    while (get_ready_queue_size() > 0) {
-        curr_pid = ready_queue.head->pid;
-        curr_pcb = pcb_array[curr_pid];
-
-        if (curr_pcb->code_offset < MAX_LINES_PER_CODE && curr_pcb->code[curr_pcb->code_offset]) {
-            line = curr_pcb->code[curr_pcb->code_offset];
-            error_code = parseInput(line);
-            curr_pcb->code_offset++;
-        }
-
-        if (curr_pcb->code_offset >= MAX_LINES_PER_CODE || !curr_pcb->code[curr_pcb->code_offset]) {
-            ready_queue_pop(&curr_pid);
-            free_script_memory_at_index(curr_pid);
-            free_pcb_for_pid(curr_pid);
-        }
-        ready_queue_reorder_aging(curr_pid);
-    }
-
-    return error_code;
-}

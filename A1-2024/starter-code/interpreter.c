@@ -2,15 +2,17 @@
 #include <stdlib.h>
 #include <string.h> 
 #include <dirent.h>
-#include <pthread.h>
 #include <sys/stat.h>
 #include <unistd.h>
 
+#include "codememory.h"
 #include "errors.h"
+#include "resourcemanager.h"
+#include "scheduler.h"
 #include "schedulermemory.h"
 #include "setup.h"
-#include "shellmemory.h"
 #include "shell.h"
+#include "shellmemory.h"
 
 int MAX_ARGS_SIZE = 7;
 
@@ -34,11 +36,6 @@ char executes_multithreaded = 0;
 char awaits_quit = 0;
 void set_awaits_quit(char val);
 char get_awaits_quit();
-
-pthread_t main_thread = 0;
-pthread_t worker1, worker2;
-pthread_mutex_t print_lock = PTHREAD_MUTEX_INITIALIZER;
-pthread_mutex_t awaits_quit_lock = PTHREAD_MUTEX_INITIALIZER;
 
 /**
 * Interprets the command and their arguments.
@@ -140,7 +137,7 @@ run SCRIPT.TXT		Executes the file SCRIPT.TXT\n ";
 */
 int quit() {
     // don't actually deinit and quit if this is not the main_thread
-    if (executes_multithreaded && !pthread_equal(main_thread, pthread_self())) {
+    if (executes_multithreaded) {
         set_awaits_quit(1);
         return 0;
     } else {
@@ -214,7 +211,7 @@ int run(char *script) {
     if (errCode) { return errCode; }
 
     int line_count;
-    errCode = load_script_into_memory(script, pid, &line_count);
+    errCode = load_script_into_memory(pid, &line_count);
     if (errCode) { return errCode; }
 
     errCode = create_pcb_for_pid(pid, line_count);
@@ -237,7 +234,6 @@ int run(char *script) {
 *   - error code when not ok
 */
 int echo(char *arg) {
-    pthread_mutex_lock(&print_lock); 
     if (arg[0] == '\0') {
         return badcommandTooFewTokens();
     } else if (arg[0] == '$') {
@@ -258,7 +254,6 @@ int echo(char *arg) {
     } else {
         printf("%s\n", arg);
     }
-    pthread_mutex_unlock(&print_lock); 
     return 0;
 }
 
@@ -383,9 +378,6 @@ int exec(char *command_args[], int num_args) {
 
     if (strcmp(command_args[policy_index], "MT") == 0) {
         executes_multithreaded = 1;
-        if (!main_thread) {
-            main_thread = pthread_self();
-        }
         policy_index -= 1;
     }
 
@@ -426,26 +418,7 @@ int exec(char *command_args[], int num_args) {
         ready_queue_push(pid);
     }
 
-    if (executes_multithreaded && pthread_equal(main_thread, pthread_self())) {
-        error_code = pthread_create(&worker1, NULL, run_multithreaded_scheduler, (void *) policy);        
-        if (error_code) { return badcommandThreadError(); }
-
-        error_code = pthread_create(&worker2, NULL, run_multithreaded_scheduler, (void *) policy);        
-        if (error_code) { return badcommandThreadError(); }
-
-        error_code = pthread_join(worker1, NULL);
-        if (error_code) { return badcommandThreadError(); }
-
-        error_code = pthread_join(worker2, NULL);
-        if (error_code) { return badcommandThreadError(); }
-
-        if (get_awaits_quit()) {
-            quit();
-        }
-
-    } else {
-        error_code = run_scheduler(policy);
-    }
+    error_code = run_scheduler(policy);
         
     // stop running after queue becomes empty: current process was run.
     if (executes_in_background) {
@@ -474,7 +447,10 @@ int create_process_from_filename(char *filename, int *ppid) {
     error_code = find_free_pid(&pid);
     if (error_code) { return error_code; }
 
-    error_code = load_script_into_memory(filename, pid, &line_count);
+    error_code = create_page_table_for_pid(pid, filename);
+    if (error_code) { return error_code; }
+
+    error_code = load_script_into_memory(pid, &line_count);
     if (error_code) { return error_code; }
 
     error_code = create_pcb_for_pid(pid, line_count);
@@ -525,9 +501,7 @@ void *run_multithreaded_scheduler(void *arg) {
 * @param val the value to set
 */
 void set_awaits_quit(char val) {
-    pthread_mutex_lock(&awaits_quit_lock);
     awaits_quit = val;
-    pthread_mutex_unlock(&awaits_quit_lock);
 }
 
 /**
@@ -537,9 +511,7 @@ void set_awaits_quit(char val) {
 *   - the value of the awaits_quit variable
 */
 char get_awaits_quit() {
-    pthread_mutex_lock(&awaits_quit_lock);
     char val = awaits_quit;
-    pthread_mutex_unlock(&awaits_quit_lock);
     return val;
 
 }

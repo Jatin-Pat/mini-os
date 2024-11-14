@@ -1,7 +1,8 @@
-#include <pthread.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
+
+#include "setup.h"
 #include "shellmemory.h"
 
 struct memory_struct {
@@ -9,9 +10,7 @@ struct memory_struct {
     char *value;
 };
 
-struct memory_struct shellmemory[MEM_SIZE];
-
-pthread_mutex_t shellmemory_lock = PTHREAD_MUTEX_INITIALIZER;
+struct memory_struct shellmemory[VAR_MEM_SIZE];
 
 /**
 * Compares two strings to see if they are equal.
@@ -36,7 +35,7 @@ int match(char *model, char *var) {
 * Initializes the shell memory.
 */
 void mem_init() {
-    for (int i = 0; i < MEM_SIZE; i++){
+    for (int i = 0; i < VAR_MEM_SIZE; i++){
         shellmemory[i].var   = NULL;
         shellmemory[i].value = NULL;
     }
@@ -46,7 +45,7 @@ void mem_init() {
 * Deinitializes the shell memory.
 */
 void mem_deinit() {
-    for (int i = 0; i < MEM_SIZE; i++) {
+    for (int i = 0; i < VAR_MEM_SIZE; i++) {
         free(shellmemory[i].var);
         free(shellmemory[i].value);
 
@@ -65,27 +64,23 @@ void mem_deinit() {
 void mem_set_value(char *var_in, char *value_in) {
     int i;
 
-    pthread_mutex_lock(&shellmemory_lock);
-    for (i = 0; i < MEM_SIZE; i++){
+    for (i = 0; i < VAR_MEM_SIZE; i++){
         if (shellmemory[i].var && strcmp(shellmemory[i].var, var_in) == 0){
             free(shellmemory[i].value);
             shellmemory[i].value = strdup(value_in);
-            pthread_mutex_unlock(&shellmemory_lock);
             return;
         } 
     }
 
     //Value does not exist, need to find a free spot.
-    for (i = 0; i < MEM_SIZE; i++){
+    for (i = 0; i < VAR_MEM_SIZE; i++){
         if (!shellmemory[i].var){
             shellmemory[i].var   = strdup(var_in);
             shellmemory[i].value = strdup(value_in);
-            pthread_mutex_unlock(&shellmemory_lock);
             return;
         } 
     }
 
-    pthread_mutex_unlock(&shellmemory_lock);
     return;
 }
 
@@ -101,14 +96,11 @@ void mem_set_value(char *var_in, char *value_in) {
 char *mem_get_value(char *var_in) {
     int i;
 
-    pthread_mutex_lock(&shellmemory_lock);
-    for (i = 0; i < MEM_SIZE; i++){
+    for (i = 0; i < VAR_MEM_SIZE; i++){
         if (shellmemory[i].var && strcmp(shellmemory[i].var, var_in) == 0){
-            pthread_mutex_unlock(&shellmemory_lock);
             return strdup(shellmemory[i].value);
         } 
     }
     
-    pthread_mutex_unlock(&shellmemory_lock);
     return NULL;
 }

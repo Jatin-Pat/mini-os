@@ -1,0 +1,10 @@
+#ifndef SCHEDULER_H
+#define SCHEDULER_H
+
+int parseInput(char inp[]);
+int run_scheduler();
+int sequential_policy();
+int round_robin_policy(int max_timer);
+int aging_policy();
+
+#endif

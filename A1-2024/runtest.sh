@@ -51,7 +51,7 @@ if [ $# -ge 1 ]; then
     done 
 else
     echo "Did not receive arguments: running all tests in $test_dir"
-    for fname in $( ls $test_dir | grep -v -e "_result" -e "P_");
+    for fname in $( ls $test_dir | grep -v -e "_result" -e "P_" -e "prog" -e "README");
     do
         file_stem="${fname%.*}"
         # echo "running: $file_stem"  # uncomment for debugging
