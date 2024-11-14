@@ -10,7 +10,7 @@
 *  - the number of frames in code memory
 */
 int num_frames() {
-    return floor(CODE_MEM_SIZE / 3);
+    return floor(CODE_MEM_SIZE / PAGE_SIZE);
 }
 
 /**

@@ -81,7 +81,7 @@ int find_page_table_with_fname(int pid, char *fname) {
     page_table_t *pt;
     for (int i = 0; i < MAX_NUM_PROCESSES; i++) {
          pt = page_table_array[i];
-        if (pt && strcmp(pt->backing_store_fname, fname) == 0) {
+        if (pt && strcmp(pt->backing_store_fname, fname) == 0 && i != pid) {
            return i;         
         }
     }
@@ -236,6 +236,7 @@ int load_script_into_memory(int pid, int *line_count) {
     char *filename = get_backstore_fname_for_pid(pid);
     FILE *p = fopen(filename, "rt");
     *line_count = count_lines_in_file(p);
+    fclose(p);
     
     for (int i = 0; i < *line_count; i += PAGE_SIZE) {
         load_page_at(pid, i);
