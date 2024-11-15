@@ -98,7 +98,7 @@ int create_page_table_for_pid(int pid, char *backing_store_fname) {
     if (page_table_index == pid) {
         curr_pt = malloc(sizeof(page_table_t));
         curr_pt->backing_store_fname = strdup(backing_store_fname);
-        size_t size_entries = num_frames() * sizeof(int);
+        size_t size_entries = MAX_PAGE_TABLE_ENTRIES * sizeof(int);
         curr_pt->entries = malloc(size_entries);
         memset(curr_pt->entries, -1, size_entries); // set all as invalid
     } else {
@@ -133,7 +133,7 @@ int get_pt_entry_for_line(int pid, int codeline){
     }
 
     int pte_index = floor(codeline / PAGE_SIZE);
-    if (pte_index >= num_frames()) {
+    if (pte_index > MAX_PAGE_TABLE_ENTRIES) {
         return -1;
     }
     return page_table_array[pid]->entries[pte_index];
@@ -166,8 +166,8 @@ int load_page_at(int pid, int codeline) {
     int frame_number = get_pt_entry_for_line(pid, codeline);
     if (frame_number == -1) {
         error_code = allocate_frame_to_page(pid, page_num);
-        // TODO OOM
         if (error_code) { return 1; }
+
         frame_number = get_pt_entry_for_line(pid, codeline);
     }
 
@@ -192,6 +192,154 @@ int load_page_at(int pid, int codeline) {
             memset(line, 0, sizeof(line));
         }
     }
+    
+    /*
+    for (int i = 0; i < num_frames(); i++) {
+        printf("free frame %d: %d\n", i, free_frames[i]);
+    }
+
+    for (int i = 0; i < CODE_MEM_SIZE; i++) {
+        printf("code_mem[%d]: %s\n", i, code_mem[i] ? code_mem[i] : "NULL");
+    }
+
+    for (int i = 0; i < MAX_NUM_PROCESSES; i++) {
+        printf("page_table_array[%d]: %p\n", i, page_table_array[i]);
+    }
+    */
+
+
+    fclose(p);
+
+    next_page_load = (next_page_load + 1) % num_frames();
+    //printf("next_page_load: %d\n", next_page_load);
+    
+    return 0; 
+}
+
+int get_memory_at(int pid, int codeline, char **line) {
+    int error_code = 0;
+    int memory_addr;
+   
+    // check if invalid entry
+    int offset = codeline % PAGE_SIZE;
+    int frame_number = get_pt_entry_for_line(pid, codeline);
+    if (frame_number == -1) {
+        *line = NULL;
+        return 1; // page fault
+    }
+    
+    memory_addr = (frame_number * PAGE_SIZE) + offset;
+    *line = code_mem[memory_addr];
+    
+    return error_code; 
+}
+
+int handle_page_fault(int pid, int codeline) {
+    if (load_page_at(pid, codeline)) {
+        evict_frame(pid, codeline); // free frame
+        if (load_page_at(pid, codeline) != 0){// load page, should succeed now
+            printf("ERROR FAILED TO LOAD PAGE AFTER EVICTION\n");
+        } 
+    } else {
+        printf("Page fault!\n");
+    }
+
+    return 0;
+}
+
+int evict_frame(int pid, int codeline) {
+    int memory_addr;
+    int victim_frame_num = next_page_load;
+
+    printf("Page fault! Victim page contents:\n\n");
+
+    for (int i = 0; i < PAGE_SIZE; i++) {
+        memory_addr = (victim_frame_num * PAGE_SIZE) + i;
+        printf("%s", code_mem[memory_addr]);
+        code_mem[memory_addr] = 0;
+    }
+
+    free_frames[victim_frame_num] = 1; // free for later call to load_page_at
+
+    printf("\nEnd of victim page contents.\n");
+
+    // update page tables to remove victim frame
+    for (int i = 0; i < MAX_NUM_PROCESSES; i++) {
+        if (page_table_array[i]) {
+            page_table_t *pt = page_table_array[i];
+            for (int j = 0; j < MAX_PAGE_TABLE_ENTRIES; j++) {
+                if (pt->entries[j] == victim_frame_num) {
+                    pt->entries[j] = -1;
+                    break;
+                }
+            }
+        }
+    }
+
+    return 0;
+}
+
+/*
+int handle_page_fault(int pid, int codeline) {
+    int error_code = 0;
+    int memory_addr;
+    char line[MAX_USER_INPUT];
+    int frame_num;
+
+    int page_num = floor(codeline / PAGE_SIZE);
+
+    error_code = allocate_frame_to_page(pid, page_num);
+    if (error_code) { // out of memory, eviction
+        int victim_frame_num = next_page_load;
+        printf("Page fault! Victime page contents:\n");
+        for (int i = 0; i < PAGE_SIZE; i++) {
+            memory_addr = (victim_frame_num * PAGE_SIZE) + i;
+            printf("%s", code_mem[memory_addr]);
+            code_mem[memory_addr] = 0;
+        }
+
+        free_frames[victim_frame_num] = 1; // free now
+        printf("End of victim page contents.\n");
+
+        // remove victim frame from all page tables
+        for (int i = 0; i < MAX_NUM_PROCESSES; i++) {
+            page_table_t *pt = page_table_array[i];
+            if (pt) {
+                for (int j = 0; j < MAX_PAGE_TABLE_ENTRIES; j++) {
+                    if (pt->entries[j] == victim_frame_num) {
+                        pt->entries[j] = -1;
+                        break;
+                    }
+                }
+            }
+        }
+    } else {
+        printf("Page fault!\n");
+    }
+
+    frame_num = get_pt_entry_for_line(pid, codeline);
+
+    char *filename = get_backstore_fname_for_pid(pid);
+    FILE *p = fopen(filename, "rt");
+    if (!p) {
+        return badcommandFileDoesNotExist();
+    }
+
+    // skip until codeline
+    for (int i = 0; i < codeline && fgets(line, MAX_USER_INPUT, p); i++) {
+       if (feof(p)) { break; }
+    }  
+    memset(line, 0, sizeof(line));
+
+    // load code into frame
+    for (int i = 0; i < PAGE_SIZE; i++) {
+        memory_addr = (frame_num * PAGE_SIZE) + i;
+        code_mem[memory_addr] = NULL;
+        if (fgets(line, MAX_USER_INPUT, p)) {
+            code_mem[memory_addr] = strdup(line);
+            memset(line, 0, sizeof(line));
+        }
+    }
 
     for (int i = 0; i < num_frames(); i++) {
         printf("free frame %d: %d\n", i, free_frames[i]);
@@ -205,34 +353,9 @@ int load_page_at(int pid, int codeline) {
         printf("page_table_array[%d]: %p\n", i, page_table_array[i]);
     }
 
-
-    fclose(p);
-
-    next_page_load = (next_page_load + 1) % num_frames();
-    printf("next_page_load: %d\n", next_page_load);
-    
-    return 0; 
+    return error_code;
 }
-
-int get_memory_at(int pid, int codeline, char **line) {
-    int error_code = 0;
-    int memory_addr;
-   
-    // check if invalid entry
-    int offset = codeline % PAGE_SIZE;
-    int frame_number = get_pt_entry_for_line(pid, codeline);
-    if (frame_number == -1) {
-        //TODO PAGEFAULT!!! (shouldn,t happen in 1.2.1)
-        // handle pagefault
-        *line = NULL;
-        return 1; // page fault
-    }
-    
-    memory_addr = (frame_number * PAGE_SIZE) + offset;
-    *line = code_mem[memory_addr];
-    
-    return error_code; 
-}
+*/
 
 // TODO REWORK
 /**
@@ -252,8 +375,7 @@ int load_script_into_memory(int pid, int *line_count) {
     *line_count = count_lines_in_file(p);
     fclose(p);
     
-    // for (int i = 0; i < (*line_count < 2 * PAGE_SIZE ? *line_count : 2 * PAGE_SIZE); i += PAGE_SIZE) {
-    for (int i = 0; i < *line_count; i += PAGE_SIZE) {
+    for (int i = 0; i < (*line_count < 2 * PAGE_SIZE ? *line_count : 2 * PAGE_SIZE); i += PAGE_SIZE) {
         load_page_at(pid, i);
     } 
 
