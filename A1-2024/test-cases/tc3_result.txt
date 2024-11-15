@@ -20,7 +20,7 @@ P9L6
 Page fault!
 Page fault! Victim page contents:
 
-echo P7L1	
+echo P7L1
 echo P7L2
 echo P7L3
 

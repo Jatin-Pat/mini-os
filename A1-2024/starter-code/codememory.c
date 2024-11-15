@@ -18,6 +18,8 @@ int load_page_at(int pid, int codeline);
 
 char **code_mem;
 char *free_frames;
+char *frame_access_record;
+int curr_frame_timestamp = 0;
 int next_page_load = 0;
 
 page_table_t *page_table_array[MAX_NUM_PROCESSES] = {NULL};
@@ -33,6 +35,9 @@ int code_mem_init() {
 
     free_frames = (char *) malloc(num_frames() * sizeof(char));
     memset(free_frames, 1, num_frames() * sizeof(char));  // all frames initially free
+
+    frame_access_record = (char *) malloc(num_frames() * sizeof(char));
+    memset(frame_access_record, 0, num_frames() * sizeof(char));
     return 0;
 }
 
@@ -47,6 +52,9 @@ int code_mem_deinit() {
 
     free(free_frames);
     free_frames = NULL;
+
+    free(frame_access_record);
+    frame_access_record = NULL;
     return 0;
 }
 
@@ -144,6 +152,7 @@ int allocate_frame_to_page(int pid, int page_num) {
         if (free_frames[i]) {
             // TODO make available if clearing memory 
             free_frames[i] = 0; // no longer available
+            frame_access_record[i] = curr_frame_timestamp++;
             page_table_array[pid]->entries[page_num] = i;
             return 0;
         }
@@ -228,6 +237,7 @@ int get_memory_at(int pid, int codeline, char **line) {
         return 1; // page fault
     }
     
+    frame_access_record[frame_number] = curr_frame_timestamp++; // update access time
     memory_addr = (frame_number * PAGE_SIZE) + offset;
     *line = code_mem[memory_addr];
     
@@ -249,7 +259,14 @@ int handle_page_fault(int pid, int codeline) {
 
 int evict_frame(int pid, int codeline) {
     int memory_addr;
-    int victim_frame_num = next_page_load;
+    //int victim_frame_num = next_page_load;
+    int victim_frame_num = 0;
+
+    for (int i = 0; i < num_frames(); i++) {
+        if (frame_access_record[i] < frame_access_record[victim_frame_num]) {
+            victim_frame_num = i;
+        }
+    }
 
     printf("Page fault! Victim page contents:\n\n");
 
