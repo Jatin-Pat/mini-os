@@ -31,7 +31,7 @@ int wordEnding(char c) {
 * Returns the number of lines in file p.
 */
 int count_lines_in_file(FILE *p) {
-     char line[MAX_USER_INPUT];
+    char line[MAX_USER_INPUT];
     int current_line = 0;
     
     while(p) {

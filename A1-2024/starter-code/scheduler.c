@@ -123,10 +123,15 @@ int sequential_policy() {
             return 1; // TODO better error: no such pcb
         }
 
-        while (!get_memory_at(curr_pid, curr_pcb->code_offset, &line) && line) {
-            curr_pcb->code_offset++;
-            error_code = parseInput(line);         
+        while (curr_pcb->code_offset < curr_pcb->job_length_score) {
+            if (!get_memory_at(curr_pid, curr_pcb->code_offset, &line) && line) {
+                error_code = parseInput(line);
+                curr_pcb->code_offset++;
+            } else {
+                handle_page_fault(curr_pid, curr_pcb->code_offset);
+            }
         }
+        
         // Job is done, free up resources
         free_pcb_for_pid(curr_pid);
         free_page_table_for_pid(curr_pid);
@@ -160,17 +165,20 @@ int round_robin_policy(int max_timer) {
         }
         timer = max_timer;
 
-        while (!get_memory_at(curr_pid, curr_pcb->code_offset, &line) && line && timer > 0) {
-            usleep(1);
-            curr_pcb->code_offset++;
-            timer--;
-            error_code = parseInput(line);         
+        while (timer > 0 && curr_pcb->code_offset < curr_pcb->job_length_score) {
+            if (!get_memory_at(curr_pid, curr_pcb->code_offset, &line) && line) {
+                error_code = parseInput(line);
+                curr_pcb->code_offset++;
+                timer--;
+            } else {
+                handle_page_fault(curr_pid, curr_pcb->code_offset);
+                break;
+            }
         }
 
-        if (timer > 0) {
+        if (curr_pcb->code_offset >= curr_pcb->job_length_score) {
             free_pcb_for_pid(curr_pid);
             free_page_table_for_pid(curr_pid);
-
         } else {
             ready_queue_push(curr_pid);
         }

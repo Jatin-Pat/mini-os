@@ -7,7 +7,7 @@ P8L5
 P8L6
 Page fault! Victim page contents:
 
-echo P8L1	
+echo P8L1
 echo P8L2
 echo P8L3
 
