@@ -18,9 +18,8 @@ int load_page_at(int pid, int codeline);
 
 char **code_mem;
 char *free_frames;
-char *frame_access_record;
+char *frame_access_timestamps;
 int curr_frame_timestamp = 0;
-int next_page_load = 0;
 
 page_table_t *page_table_array[MAX_NUM_PROCESSES] = {NULL};
 
@@ -36,8 +35,8 @@ int code_mem_init() {
     free_frames = (char *) malloc(num_frames() * sizeof(char));
     memset(free_frames, 1, num_frames() * sizeof(char));  // all frames initially free
 
-    frame_access_record = (char *) malloc(num_frames() * sizeof(char));
-    memset(frame_access_record, 0, num_frames() * sizeof(char));
+    frame_access_timestamps = (char *) malloc(num_frames() * sizeof(char));
+    memset(frame_access_timestamps, 0, num_frames() * sizeof(char));
     return 0;
 }
 
@@ -53,12 +52,11 @@ int code_mem_deinit() {
     free(free_frames);
     free_frames = NULL;
 
-    free(frame_access_record);
-    frame_access_record = NULL;
+    free(frame_access_timestamps);
+    frame_access_timestamps = NULL;
     return 0;
 }
 
-// TODO REWORK
 /**
 * Frees the memory allocated for a script at an index.
 *
@@ -85,6 +83,15 @@ int free_script_memory() {
     return error_code;
 }
 
+/**
+* Finds the page table index for a process with a given filename.
+*
+* @param pid the process ID
+* @param fname the filename to search for
+* @return:
+*   - the index of the page table with the given filename
+*   - pid if no page table with the given filename is found
+*/
 int find_page_table_with_fname(int pid, char *fname) {
     page_table_t *pt;
     for (int i = 0; i < MAX_NUM_PROCESSES; i++) {
@@ -96,9 +103,18 @@ int find_page_table_with_fname(int pid, char *fname) {
     return pid;
 }
 
+/**
+* Creates a page table for a process with a given backing store filename. If a page table already exists for the filename, it is reused.
+*
+* @param pid the process ID
+* @param backing_store_fname the filename of the backing store
+* @return:
+*   - 0 when ok
+*   - 1 when a page table already exists for the process
+*/
 int create_page_table_for_pid(int pid, char *backing_store_fname) {
     if (page_table_array[pid]) {
-        return 1; //TODO BETTER ERROR: PT array nonvoid
+        return 1;
     }
 
     page_table_t *curr_pt;
@@ -118,6 +134,13 @@ int create_page_table_for_pid(int pid, char *backing_store_fname) {
     return 0;
 }
 
+/**
+* Frees the memory allocated for a page table for a process.
+*
+* @param pid the process ID
+* @return:
+*   - 0
+*/
 int free_page_table_for_pid(int pid) {
     page_table_t *pt = page_table_array[pid];
     page_table_array[pid] = NULL;
@@ -135,6 +158,14 @@ int free_page_table_for_pid(int pid) {
     return 0; 
 }
 
+/**
+* Returns the page table entry for a given process and code line.
+*
+* @param pid the process ID
+* @param codeline the code line
+* @return:
+*   - the page table entry for the given process and code line
+*/
 int get_pt_entry_for_line(int pid, int codeline){
     if (!page_table_array[pid]) { // no PT for pid
         return -1;
@@ -147,24 +178,47 @@ int get_pt_entry_for_line(int pid, int codeline){
     return page_table_array[pid]->entries[pte_index];
 }
 
+/**
+* Allocates a frame to a page in a process.
+*
+* @param pid the process ID
+* @param page_num the page number
+* @return:
+*   - 0 when ok
+*   - 1 when no frame is available
+*/
 int allocate_frame_to_page(int pid, int page_num) {
     for (int i = 0; i < num_frames(); i++) {
         if (free_frames[i]) {
-            // TODO make available if clearing memory 
             free_frames[i] = 0; // no longer available
-            frame_access_record[i] = curr_frame_timestamp++;
+            frame_access_timestamps[i] = curr_frame_timestamp++;
             page_table_array[pid]->entries[page_num] = i;
             return 0;
         }
     }
-    // TODO OUT OF MEMORY ERROR 
     return 1;
 }
 
+/**
+* Returns the filename of the backing store for a process.
+*
+* @param pid the process ID
+* @return:
+*   - the filename of the backing store for the process
+*/
 char *get_backstore_fname_for_pid(int pid) {
     return page_table_array[pid]->backing_store_fname;
 }
 
+/**
+* Loads a page at a given code line for a process.
+*
+* @param pid the process ID
+* @param codeline the code line
+* @return:
+*   - 0 when ok
+*   - 1 when not ok
+*/
 int load_page_at(int pid, int codeline) {
     int error_code = 0;
     int memory_addr;
@@ -201,30 +255,21 @@ int load_page_at(int pid, int codeline) {
             memset(line, 0, sizeof(line));
         }
     }
-    
-    /*
-    for (int i = 0; i < num_frames(); i++) {
-        printf("free frame %d: %d\n", i, free_frames[i]);
-    }
-
-    for (int i = 0; i < CODE_MEM_SIZE; i++) {
-        printf("code_mem[%d]: %s\n", i, code_mem[i] ? code_mem[i] : "NULL");
-    }
-
-    for (int i = 0; i < MAX_NUM_PROCESSES; i++) {
-        printf("page_table_array[%d]: %p\n", i, page_table_array[i]);
-    }
-    */
-
-
     fclose(p);
-
-    next_page_load = (next_page_load + 1) % num_frames();
-    //printf("next_page_load: %d\n", next_page_load);
     
     return 0; 
 }
 
+/**
+* Returns the memory at a given code line for a process.
+*
+* @param pid the process ID
+* @param codeline the code line
+* @param line a pointer to the line
+* @return:
+*   - 0 when ok
+*   - 1 when page fault
+*/
 int get_memory_at(int pid, int codeline, char **line) {
     int error_code = 0;
     int memory_addr;
@@ -237,18 +282,28 @@ int get_memory_at(int pid, int codeline, char **line) {
         return 1; // page fault
     }
     
-    frame_access_record[frame_number] = curr_frame_timestamp++; // update access time
+    frame_access_timestamps[frame_number] = curr_frame_timestamp++; // update access time
     memory_addr = (frame_number * PAGE_SIZE) + offset;
     *line = code_mem[memory_addr];
     
     return error_code; 
 }
 
+/**
+* Handles a page fault for a process at a given code line.
+*
+* @param pid the process ID
+* @param codeline the code line
+* @return:
+*   - 0 when ok
+*   - 1 when failed to load page after eviction
+*/
 int handle_page_fault(int pid, int codeline) {
     if (load_page_at(pid, codeline)) {
         evict_frame(pid, codeline); // free frame
         if (load_page_at(pid, codeline) != 0){// load page, should succeed now
-            printf("ERROR FAILED TO LOAD PAGE AFTER EVICTION\n");
+            printf("Failed to load page after eviction\n");
+            return 1;
         } 
     } else {
         printf("Page fault!\n");
@@ -257,13 +312,20 @@ int handle_page_fault(int pid, int codeline) {
     return 0;
 }
 
+/**
+* Evicts a frame for a process at a given code line.
+*
+* @param pid the process ID
+* @param codeline the code line
+* @return:
+*   - 0
+*/
 int evict_frame(int pid, int codeline) {
     int memory_addr;
-    //int victim_frame_num = next_page_load;
     int victim_frame_num = 0;
 
     for (int i = 0; i < num_frames(); i++) {
-        if (frame_access_record[i] < frame_access_record[victim_frame_num]) {
+        if (frame_access_timestamps[i] < frame_access_timestamps[victim_frame_num]) {
             victim_frame_num = i;
         }
     }
@@ -296,85 +358,6 @@ int evict_frame(int pid, int codeline) {
     return 0;
 }
 
-/*
-int handle_page_fault(int pid, int codeline) {
-    int error_code = 0;
-    int memory_addr;
-    char line[MAX_USER_INPUT];
-    int frame_num;
-
-    int page_num = floor(codeline / PAGE_SIZE);
-
-    error_code = allocate_frame_to_page(pid, page_num);
-    if (error_code) { // out of memory, eviction
-        int victim_frame_num = next_page_load;
-        printf("Page fault! Victime page contents:\n");
-        for (int i = 0; i < PAGE_SIZE; i++) {
-            memory_addr = (victim_frame_num * PAGE_SIZE) + i;
-            printf("%s", code_mem[memory_addr]);
-            code_mem[memory_addr] = 0;
-        }
-
-        free_frames[victim_frame_num] = 1; // free now
-        printf("End of victim page contents.\n");
-
-        // remove victim frame from all page tables
-        for (int i = 0; i < MAX_NUM_PROCESSES; i++) {
-            page_table_t *pt = page_table_array[i];
-            if (pt) {
-                for (int j = 0; j < MAX_PAGE_TABLE_ENTRIES; j++) {
-                    if (pt->entries[j] == victim_frame_num) {
-                        pt->entries[j] = -1;
-                        break;
-                    }
-                }
-            }
-        }
-    } else {
-        printf("Page fault!\n");
-    }
-
-    frame_num = get_pt_entry_for_line(pid, codeline);
-
-    char *filename = get_backstore_fname_for_pid(pid);
-    FILE *p = fopen(filename, "rt");
-    if (!p) {
-        return badcommandFileDoesNotExist();
-    }
-
-    // skip until codeline
-    for (int i = 0; i < codeline && fgets(line, MAX_USER_INPUT, p); i++) {
-       if (feof(p)) { break; }
-    }  
-    memset(line, 0, sizeof(line));
-
-    // load code into frame
-    for (int i = 0; i < PAGE_SIZE; i++) {
-        memory_addr = (frame_num * PAGE_SIZE) + i;
-        code_mem[memory_addr] = NULL;
-        if (fgets(line, MAX_USER_INPUT, p)) {
-            code_mem[memory_addr] = strdup(line);
-            memset(line, 0, sizeof(line));
-        }
-    }
-
-    for (int i = 0; i < num_frames(); i++) {
-        printf("free frame %d: %d\n", i, free_frames[i]);
-    }
-
-    for (int i = 0; i < CODE_MEM_SIZE; i++) {
-        printf("code_mem[%d]: %s\n", i, code_mem[i] ? code_mem[i] : "NULL");
-    }
-
-    for (int i = 0; i < MAX_NUM_PROCESSES; i++) {
-        printf("page_table_array[%d]: %p\n", i, page_table_array[i]);
-    }
-
-    return error_code;
-}
-*/
-
-// TODO REWORK
 /**
 * Loads the script contained in filename into process memory for a pid.
 *
@@ -399,8 +382,6 @@ int load_script_into_memory(int pid, int *line_count) {
     return error_code;
 }
 
-
-// TODO REWORK
 /**
 * Loads the rest of the current script into process memory for a pid.
 *
@@ -427,4 +408,3 @@ int load_current_script_into_memory(int pid) {
 
     return error_code;
 }
-
