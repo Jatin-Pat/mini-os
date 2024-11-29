@@ -334,8 +334,11 @@ int evict_frame(int pid, int codeline) {
 
     for (int i = 0; i < PAGE_SIZE; i++) {
         memory_addr = (victim_frame_num * PAGE_SIZE) + i;
-        printf("%s", code_mem[memory_addr]);
-        code_mem[memory_addr] = 0;
+        if (code_mem[memory_addr]) {
+            printf("%s", code_mem[memory_addr]);
+        }
+        free(code_mem[memory_addr]);
+        code_mem[memory_addr] = NULL;
     }
 
     free_frames[victim_frame_num] = 1; // free for later call to load_page_at
